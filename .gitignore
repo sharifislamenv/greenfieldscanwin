@@ -1,0 +1,12 @@
+# .gitignore
+
+# Dependencies
+/node_modules
+/frontend/node_modules
+
+# Secrets
+.env
+/frontend/.env
+
+# Generated output
+/generated_qrs/

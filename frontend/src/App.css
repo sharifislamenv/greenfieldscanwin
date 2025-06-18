@@ -1,0 +1,73 @@
+/* The .welcome-page styles are no longer used by the main homepage (App.js)
+  as it now renders the HomePage component. 
+  They can be removed or kept for other simple pages.
+*/
+.welcome-page {
+  text-align: center;
+  padding: 50px 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.welcome-page h1 {
+  font-size: 3rem;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.welcome-page p {
+  font-size: 1.2rem;
+  color: #7f8c8d;
+  margin-bottom: 40px;
+}
+
+.welcome-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.action-button {
+  background: #3498db;
+  color: white;
+  padding: 15px 30px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  min-width: 200px;
+  text-align: center;
+}
+
+.action-button:hover {
+  background: #2980b9;
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Styles for 404 page */
+.not-found {
+  text-align: center;
+  padding: 50px 20px;
+}
+
+.not-found h1 {
+  font-size: 2.5rem;
+  color: #e74c3c;
+  margin-bottom: 20px;
+}
+
+.not-found p {
+  font-size: 1.2rem;
+}
+
+.not-found a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.not-found a:hover {
+  text-decoration: underline;
+}

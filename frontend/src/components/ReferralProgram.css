@@ -1,0 +1,116 @@
+.referral-program {
+  text-align: center;
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.referral-card {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+  border-radius: 15px;
+  padding: 25px;
+  margin: 25px 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.referral-code {
+  font-size: 2rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin: 20px 0;
+  padding: 15px;
+  background: white;
+  border-radius: 10px;
+  border: 2px dashed #e74c3c;
+}
+
+.referral-stats {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.stat {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  padding: 15px;
+  width: 45%;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.referral-instructions {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.referral-link {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 30px;
+  padding: 10px 20px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.referral-link button {
+  margin-left: auto;
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.referral-link button:hover {
+  background: #2980b9;
+}
+
+.complete-button {
+  background-color: #9b59b6;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 30px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+.complete-button:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.complete-button:not(:disabled):hover {
+  background-color: #8e44ad;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.success-message {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #d5f5e3;
+  border-radius: 8px;
+  color: #27ae60;
+  font-weight: bold;
+}
