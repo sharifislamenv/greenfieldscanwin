@@ -22,6 +22,15 @@ def generate_qr(store_id, banner_id, item_id, lat, lng, campaign_id=None):
 
     # CRITICAL HMAC INTEGRITY FIX: Include unique_id in the data that is signed.
     data_to_sign = f"{store_id}|{banner_id}|{item_id}|{lat}|{lng}|{unique_id}"
+    #-----------------
+
+    # --- ADD THESE TWO LINES FOR DEBUGGING ---
+    print("--- PYTHON (GENERATION) ---")
+    print(f"DATA TO SIGN: '{data_to_sign}'")
+    print(f"SECRET KEY: '{secret_key.decode()}'") # Use .decode() to print the string
+    # ------------------------------------------
+
+    #-----------------
     signature = hmac.new(secret_key, data_to_sign.encode(), hashlib.sha256).hexdigest()
 
     # The data embedded in the QR code URL, including the signed payload and signature.
