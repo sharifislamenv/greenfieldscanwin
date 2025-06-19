@@ -28,12 +28,18 @@ def generate_qr(store_id, banner_id, item_id, lat, lng, campaign_id=None):
     print("--- PYTHON (GENERATION) ---")
     print(f"DATA TO SIGN: '{data_to_sign}'")
     print(f"SECRET KEY: '{secret_key.decode()}'") # Use .decode() to print the string
+    
     # ------------------------------------------
 
     #-----------------
     signature = hmac.new(secret_key, data_to_sign.encode(), hashlib.sha256).hexdigest()
 
     # The data embedded in the QR code URL, including the signed payload and signature.
+    
+    #---------------------------------------
+    print(f"PYTHON's Signature: {signature}")
+    #---------------------------------------
+    
     signed_data_for_qr = f"{data_to_sign}|{signature}"
 
     # Create QR Code object
