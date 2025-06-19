@@ -8,7 +8,7 @@ import RewardUnlock from '../components/RewardUnlock';
 import SocialChallenge from '../components/SocialChallenge';
 import ReferralProgram from '../components/ReferralProgram';
 import VideoExperience from '../components/VideoExperience';
-import CryptoJS from 'crypto-js'; // --- NEW: Import the crypto library ---
+import CryptoJS from 'crypto-js'; // Import the crypto library
 
 const ScanPage = () => {
   const [step, setStep] = useState('verifying');
@@ -18,32 +18,39 @@ const ScanPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Parse QR data from URL
+  // --- UPDATED useEffect hook for verification ---
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const data = params.get('d');
     
-    console.log('ScanPage: Initializing. URL Data (d parameter):', data);
+    console.log('ScanPage: Initializing. URL Data:', data);
 
     if (data) {
       const parts = data.split('|');
-      console.log('ScanPage: Parsed parts from URL data:', parts);
+      console.log('ScanPage: Parsed parts:', parts);
 
-      // Expecting 7 parts: storeId, bannerId, itemId, lat, lng, qrId, signature
-      if (parts.length === 7) { 
+      if (parts.length === 7) {
         const [storeId, bannerId, itemId, lat, lng, qrId, signature] = parts;
         
-        // Verify signature
         const secretKey = process.env.REACT_APP_HMAC_SECRET;
-        const dataStringForVerification = `${storeId}|${bannerId}|${itemId}|${lat}|${lng}|${qrId}`;
-        const computedSignature = createHmacSignature(secretKey, dataStringForVerification);
-        
-        console.log('ScanPage: Data string for verification:', dataStringForVerification);
-        console.log('ScanPage: Received Signature:', signature);
-        console.log('ScanPage: Computed Signature:', computedSignature);
+        if (!secretKey) {
+          console.error('HMAC secret key not configured');
+          setStep('invalid-signature');
+          return;
+        }
 
+        console.log('ScanPage: Using secret key:', secretKey);
+        
+        const dataString = `${storeId}|${bannerId}|${itemId}|${lat}|${lng}|${qrId}`;
+        const computedSignature = createHmacSignature(secretKey, dataString);
+        
+        console.log('ScanPage: Data string:', dataString);
+        console.log('ScanPage: Received signature:', signature);
+        console.log('ScanPage: Computed signature:', computedSignature);
+
+        // Secure comparison
         if (computedSignature === signature) {
-          console.log('ScanPage: SIGNATURE VERIFICATION: SUCCESS');
+          console.log('ScanPage: Signature valid');
           setQrData({
             storeId: parseInt(storeId),
             bannerId: parseInt(bannerId),
@@ -54,17 +61,18 @@ const ScanPage = () => {
           });
           setStep('location-verification');
         } else {
-          console.warn('ScanPage: SIGNATURE VERIFICATION: FAILED! Data might be tampered.');
+          console.warn('ScanPage: Invalid signature');
           setStep('invalid-signature');
         }
       } else {
-        console.error('ScanPage: QR data format incorrect (expected 7 parts). Current parts:', parts.length);
+        console.error('ScanPage: Invalid data format');
         setStep('invalid-format');
       }
-    } else {
-      console.log('ScanPage: No "d" parameter found in URL. Waiting for QR scan or manual input.');
     }
   }, [location]);
+
+  // (The rest of your ScanPage component remains the same)
+  // ... from "useEffect for location verification" down to the return statement ...
 
   // Verify location
   useEffect(() => {
@@ -75,7 +83,7 @@ const ScanPage = () => {
           const userLat = position.coords.latitude;
           const userLng = position.coords.longitude;
           
-          const R = 6371e3; // Earth's radius in meters
+          const R = 6371e3;
           const φ1 = qrData.lat * Math.PI/180;
           const φ2 = userLat * Math.PI/180;
           const Δφ = (userLat - qrData.lat) * Math.PI/180;
@@ -105,17 +113,19 @@ const ScanPage = () => {
     }
   }, [step, qrData]);
 
-  // Process receipt upload
+  // (All other functions like handleReceiptUpload, awardReward, etc., remain here)
   const handleReceiptUpload = async (file) => {
     setStep('processing-receipt');
     console.log('ScanPage: Processing receipt...');
     
     try {
+      // OCR Processing
       const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-        logger: m => console.log('Tesseract:', m)
+        logger: m => console.log('Tesseract:', m) // Tesseract progress
       });
       console.log('ScanPage: OCR Text Result:', text);
       
+      // Parse receipt data
       const receiptData = {
         date: extractDate(text),
         time: extractTime(text),
@@ -124,6 +134,7 @@ const ScanPage = () => {
       };
       console.log('ScanPage: Parsed Receipt Data:', receiptData);
       
+      // Validate receipt (assuming rpc validate_receipt exists in Supabase)
       const { data: validation, error: rpcError } = await supabase.rpc('validate_receipt', {
         p_qr_id: qrData.qrId,
         p_receipt_data: JSON.stringify(receiptData)
@@ -132,12 +143,13 @@ const ScanPage = () => {
       if (rpcError) throw rpcError;
       console.log('ScanPage: Receipt validation RPC result:', validation);
       
-      if (validation && validation.is_valid) {
+      if (validation && validation.is_valid) { // Ensure validation is not null and has is_valid
         console.log('ScanPage: RECEIPT VALIDATION: SUCCESS');
+        // Get user data
         const { data: user } = await supabase.auth.getUser();
-        if (!user) {
+        if (!user) { // Ensure user is authenticated
             console.error('ScanPage: User not authenticated for reward processing.');
-            setStep('authentication-required');
+            setStep('authentication-required'); // Or redirect to auth page
             return;
         }
 
@@ -151,6 +163,7 @@ const ScanPage = () => {
         setUserData(userProfile);
         console.log('ScanPage: User Profile fetched:', userProfile);
         
+        // Check for campaign
         const { data: qrInfo, error: qrInfoError } = await supabase
           .from('qr_codes')
           .select('campaign_id')
@@ -171,6 +184,7 @@ const ScanPage = () => {
           console.log('ScanPage: Active Campaign Data:', campaignData);
         }
         
+        // Award level 1 reward
         const reward1 = await awardReward(user.user.id, 1);
         console.log('ScanPage: Level 1 Reward Awarded:', reward1);
         setStep('level-1-reward');
@@ -183,8 +197,6 @@ const ScanPage = () => {
       setStep('processing-error');
     }
   };
-
-  // Award reward based on level
   const awardReward = async (userId, level) => {
     const rewards = {
       1: { type: 'coupon', value: '10OFF', points: 50, description: '10% Off Your Next Purchase!' },
@@ -199,6 +211,7 @@ const ScanPage = () => {
         return null;
     }
 
+    // Update user points and level
     const { data, error } = await supabase.rpc('update_user_progress', {
       p_user_id: userId,
       p_points: reward.points,
@@ -213,14 +226,12 @@ const ScanPage = () => {
     
     return reward;
   };
-
   const completeSocialChallenge = async () => {
     console.log('ScanPage: Completing Social Challenge...');
     const reward = await awardReward(userData.id, 3);
     console.log('ScanPage: Level 3 Reward Awarded (Social Challenge):', reward);
     setStep('level-3-reward');
   };
-
   const completeReferralChallenge = async () => {
     console.log('ScanPage: Completing Referral Challenge...');
     const reward = await awardReward(userData.id, 4);
@@ -230,7 +241,6 @@ const ScanPage = () => {
 
   return (
     <div className="scan-container">
-      {/* --- UI Rendering based on 'step' state remains the same --- */}
       {step === 'verifying' && <div className="loader">Verifying QR code...</div>}
       {step === 'location-verification' && <div className="location-check"><h2>Location Verification</h2><p>Please allow location access to continue</p><p className="loading-message">Checking your proximity to the QR code...</p></div>}
       {step === 'location-mismatch' && <div className="error-message"><h2>Location Mismatch!</h2><p>You must be within 100 meters of the QR code to participate.</p><button onClick={() => navigate('/')}>Return to Home</button></div>}
@@ -253,7 +263,7 @@ const ScanPage = () => {
   );
 };
 
-// Helper functions for parsing receipt text (unchanged)
+// Helper functions for parsing receipt text
 const extractDate = (text) => {
   const dateRegex = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/;
   const match = text.match(dateRegex);
@@ -279,18 +289,11 @@ const extractTotal = (text) => {
   return match ? parseFloat(match[1]) : 0;
 };
 
-// --- NEW, CORRECTED FUNCTION ---
-// This function now uses the crypto-js library to create a real HMAC-SHA256 signature
-// that will match the one generated by the Python script.
+// --- UPDATED AND CORRECTED SIGNATURE FUNCTION ---
 const createHmacSignature = (secretKey, data) => {
-  // First, we tell crypto-js to parse the hexadecimal secret key
-  // into its internal "word array" format.
-  const secretKeyWords = CryptoJS.enc.Hex.parse(secretKey);
-
-  // Then, we create the signature using the parsed key and the data.
-  const signature = CryptoJS.HmacSHA256(data, secretKeyWords);
-
-  // Finally, we convert the signature to a hexadecimal string to match Python's output.
+  // This uses the crypto-js library to perform a real HMAC-SHA256 hash.
+  // It correctly handles a passphrase-style secret key.
+  const signature = CryptoJS.HmacSHA256(data, secretKey);
   return signature.toString(CryptoJS.enc.Hex);
 };
 

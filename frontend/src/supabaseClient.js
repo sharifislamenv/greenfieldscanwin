@@ -1,11 +1,14 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
 
-// Get environment variables with fallbacks
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_KEY || 'your-anon-key';
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_KEY;
 
-// Create and export Supabase client
+// This check will stop the app with a clear error if the keys are missing
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and Anon Key must be set in environment variables. Check your .env file.');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -13,11 +16,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 });
-
-// Optional: Add realtime functionality
-export const setupRealtime = (table, event, callback) => {
-  return supabase
-    .channel('custom-channel')
-    .on('postgres_changes', { event, schema: 'public', table }, callback)
-    .subscribe();
-};
