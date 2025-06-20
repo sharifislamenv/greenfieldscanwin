@@ -155,3 +155,81 @@ CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION handle_new_user();
+
+--13.
+CREATE POLICY "Allow QR code uploads"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'qr-codes2')
+
+--14. 
+CREATE OR REPLACE FUNCTION validate_receipt(p_qr_id UUID, p_receipt_data JSONB)
+RETURNS TABLE(is_valid BOOLEAN, campaign_id INTEGER, points INTEGER) AS $$
+DECLARE
+    v_receipt_total NUMERIC;
+    v_min_amount NUMERIC := 0;
+    v_reward_type TEXT;
+    v_campaign_id INTEGER;
+BEGIN
+    -- Validate receipt data structure
+    IF p_receipt_data->>'total' IS NULL THEN
+        RETURN QUERY SELECT FALSE, NULL, 0;
+    END IF;
+
+
+    -- Parse receipt total safely
+    BEGIN
+        v_receipt_total := (p_receipt_data->>'total')::NUMERIC;
+    EXCEPTION WHEN OTHERS THEN
+        RETURN QUERY SELECT FALSE, NULL, 0;
+    END;
+
+
+    -- Get campaign info
+    SELECT 
+        q.campaign_id, 
+        c.reward->>'type',
+        COALESCE((c.rules->>'min_receipt_amount')::NUMERIC, 0)
+    INTO v_campaign_id, v_reward_type, v_min_amount
+    FROM qr_codes q
+    LEFT JOIN campaigns c ON q.campaign_id = c.id
+    WHERE q.id = p_qr_id
+      AND c.is_active = TRUE
+      AND CURRENT_TIMESTAMP BETWEEN c.start_date AND c.end_date;
+
+
+    -- Validate campaign and receipt amount
+    IF NOT FOUND OR v_receipt_total < v_min_amount THEN
+        RETURN QUERY SELECT FALSE, NULL, 0;
+    END IF;
+
+
+    -- Return result with points
+    RETURN QUERY 
+    SELECT 
+        TRUE,
+        v_campaign_id,
+        CASE v_reward_type
+            WHEN 'coupon' THEN 50
+            WHEN 'content' THEN 100
+            WHEN 'social' THEN 150
+            WHEN 'referral' THEN 200
+            ELSE 25
+        END;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+--15.
+CREATE TABLE error_logs (
+  id SERIAL PRIMARY KEY,
+  error_type TEXT NOT NULL,
+  error_message TEXT NOT NULL,
+  qr_id UUID REFERENCES qr_codes(id),
+  user_id UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_error_logs_type ON error_logs(error_type);
+CREATE INDEX idx_error_logs_time ON error_logs(created_at);
+
