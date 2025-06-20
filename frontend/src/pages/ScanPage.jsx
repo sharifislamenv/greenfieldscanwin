@@ -34,15 +34,14 @@ const ScanPage = () => {
       const data = params.get('d');
       
       if (!data) {
-        console.log('No QR data found in URL');
-        return;
+        return; // No data in URL, do nothing
       }
 
       const parts = data.split('|');
       
       if (parts.length !== 7) {
-        setError('Invalid QR data format');
-        setStep('invalid-format');
+        setError('Invalid QR data format.');
+        setStep('error');
         return;
       }
 
@@ -50,8 +49,8 @@ const ScanPage = () => {
       const secretKey = process.env.REACT_APP_HMAC_SECRET;
 
       if (!secretKey) {
-        setError('HMAC secret key not configured');
-        setStep('invalid-signature');
+        setError('HMAC secret key is not configured.');
+        setStep('error');
         return;
       }
 
@@ -59,8 +58,8 @@ const ScanPage = () => {
       const computedSignature = createHmacSignature(secretKey, dataToVerify);
 
       if (receivedSignature !== computedSignature) {
-        setError('Invalid QR code signature');
-        setStep('invalid-signature');
+        setError('Invalid QR code signature. The code may be fraudulent or tampered with.');
+        setStep('error');
         return;
       }
 
@@ -78,7 +77,7 @@ const ScanPage = () => {
     verifyQRData().catch(err => {
       console.error('QR verification error:', err);
       setError(err.message);
-      setStep('processing-error');
+      setStep('error');
     });
   }, [location]);
 
@@ -109,10 +108,10 @@ const ScanPage = () => {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         const distance = R * c;
 
-        // Use a large number for testing, change to 100 for production
+        // Using a large number for testing. Change to 100 for production.
         if (distance > 20000000) { 
           setError('You must be within the required distance of the store.');
-          setStep('location-mismatch');
+          setStep('error');
           return;
         }
 
@@ -120,14 +119,14 @@ const ScanPage = () => {
       } catch (err) {
         console.error('Location error:', err);
         setError(err.message);
-        setStep('location-error');
+        setStep('error');
       }
     };
 
     verifyLocation();
   }, [step, qrData]);
 
-  // --- UPDATED FUNCTION with Enhanced Error Handling ---
+  // --- FINAL, ROBUST handleReceiptUpload FUNCTION ---
   const handleReceiptUpload = async (file) => {
     setIsProcessing(true);
     setError(null);
@@ -152,20 +151,22 @@ const ScanPage = () => {
         total: extractTotal(text)
       };
   
-      // 3. Validate with backend
+      // 3. Validate with backend database function
       const { data: validation, error: rpcError } = await supabase.rpc('validate_receipt', {
         p_qr_id: qrData.qrId,
         p_receipt_data: receiptData
       });
   
+      // Handle if the function call itself has a network or permission error
       if (rpcError) {
-          // If the RPC call itself fails, throw the error to be caught below
           throw rpcError;
       }
       
+      // Check the 'is_valid' property from the JSON object returned by the function
       if (!validation?.is_valid) {
-          // If the function returns is_valid = false
-          throw new Error('Receipt could not be validated by the system. Reason: ' + (validation?.message || 'Unknown'));
+          // If not valid, create a new error with the specific message from the database
+          const reason = validation?.message || 'Unknown';
+          throw new Error(`Receipt could not be validated. Reason: ${reason}`);
       }
   
       // --- If validation is successful, continue with the reward logic ---
@@ -174,19 +175,13 @@ const ScanPage = () => {
           setStep('authentication-required');
           return;
       }
-      await awardReward(user.id, 1); // Example: Award level 1 reward
+      await awardReward(user.user.id, 1); // Award level 1 reward
       setStep('level-1-reward');
       
     } catch (err) {
       console.error('Receipt processing failed:', err);
-      
-      // Provide a more user-friendly message for specific, known errors
-      if (err.code === '42703') { // This is the PostgreSQL code for "undefined column"
-        setError('A system configuration error occurred. Please contact support.');
-      } else {
-        setError(err.message);
-      }
-      setStep('processing-error');
+      setError(err.message); // Set the detailed error message for display
+      setStep('error');
       
       // Log the detailed error to your database for your own debugging
       try {
@@ -226,16 +221,16 @@ const ScanPage = () => {
     return reward;
   };
 
-  // Receipt Parsing Helpers
-  const extractDate = (text) => { /* ... unchanged ... */ return new Date().toISOString().split('T')[0]; };
-  const extractTime = (text) => { /* ... unchanged ... */ return new Date().toISOString().split('T')[1].split('.')[0]; };
-  const extractItems = (text) => { /* ... unchanged ... */ return []; };
-  const extractTotal = (text) => { /* ... unchanged ... */ return 0; };
+  // Receipt Parsing Helpers (placeholders)
+  const extractDate = (text) => new Date().toISOString().split('T')[0];
+  const extractTime = (text) => new Date().toISOString().split('T')[1].split('.')[0];
+  const extractItems = (text) => [];
+  const extractTotal = (text) => 0;
 
   // UI Rendering
   const renderStep = () => {
-    // A single, unified error display
-    if (step === 'processing-error' || step === 'location-error' || step === 'invalid-signature' || step === 'invalid-format' || step === 'location-mismatch') {
+    // A single, unified error display for all error steps
+    if (step === 'error') {
         return (
             <div className="error-message">
                 <h2>An Error Occurred</h2>
@@ -262,14 +257,15 @@ const ScanPage = () => {
       case 'processing-receipt':
         return <div className="loader">Processing your receipt...</div>;
       case 'authentication-required':
-          return <div className="error-message"><h2>Authentication Required</h2><p>Please log in to claim your rewards.</p><button onClick={() => navigate('/auth')}>Go to Login</button></div>
+          return <div className="error-message"><h2>Authentication Required</h2><p>Please log in to claim your rewards.</p><button onClick={() => navigate('/auth')}>Go to Login</button></div>;
       case 'level-1-reward':
         return <RewardUnlock level={1} reward={{ type: 'coupon', value: '10% Off', description: 'A coupon has been added to your profile!' }} onContinue={() => setStep('level-2-challenge')} />;
-      // --- Cases for other levels and challenges would go here ---
-      // case 'level-2-challenge': return <VideoExperience ... />;
+      
+      // Cases for other levels (2, 3, 4) and their corresponding challenges would go here
       
       default:
-        return <div><p>Loading...</p></div>;
+        // A fallback for any unhandled step or error state
+        return <div className="error-message"><h2>An Error Occurred</h2><p>An unexpected error occurred. Please return home and try again.</p><button onClick={() => navigate('/')}>Return to Home</button></div>;
     }
   };
 
