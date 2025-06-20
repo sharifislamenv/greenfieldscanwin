@@ -167,13 +167,12 @@ const ScanPage = () => {
           setStep('authentication-required');
           return;
       }
-      await awardReward(user.user.id, 1);
+      
+      // FIXED: Changed from user.user.id to user.id
+      await awardReward(user.id, 1);
       setStep('level-1-reward');
       
     } catch (err) {
-      // --- FIX APPLIED HERE ---
-      // This updated catch block safely handles the error logging
-      // even when no user is logged in, preventing the app from crashing.
       console.error('Receipt processing failed:', err);
       setError(err.message);
       setStep('error');
@@ -186,12 +185,11 @@ const ScanPage = () => {
               error_type: 'receipt_processing',
               error_message: err.message,
               qr_id: qrData?.qrId,
-              user_id: user ? user.id : null // This prevents the crash
+              user_id: user ? user.id : null
           });
       } catch (logError) {
           console.error("Failed to write to error_logs:", logError);
       }
-      // ----------------------
   
     } finally {
       setIsProcessing(false);

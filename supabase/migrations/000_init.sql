@@ -259,4 +259,110 @@ ON public.users
 FOR SELECT
 USING (auth.uid() = id);
 
+-- Add the is_active column to campaigns table with default value
+ALTER TABLE public.campaigns 
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE NOT NULL;
+
+-- Optional: Update existing records if needed
+-- UPDATE public.campaigns SET is_active = TRUE WHERE is_active IS NULL;
+
+-- First check if they reference other missing columns
+SELECT prosrc FROM pg_proc WHERE proname IN ('wallgate-receipt', 'validate_receipt');
+
+-- Update if necessary (example)
+CREATE OR REPLACE FUNCTION public.validate_receipt()
+RETURNS void AS $$
+BEGIN
+  -- Updated procedure logic
+END;
+$$ LANGUAGE plpgsql;        
+
+-- Create a validation view to check for common schema issues
+CREATE OR REPLACE VIEW public.schema_validation AS
+SELECT 'campaigns' AS table_name, 
+       COUNT(*) AS missing_is_active 
+FROM information_schema.columns 
+WHERE table_name = 'campaigns' 
+AND column_name = 'is_active'
+HAVING COUNT(*) = 0;
+
+-- Add column comments to document the purpose
+COMMENT ON COLUMN public.campaigns.is_active 
+IS 'Flag indicating whether campaign is currently active (default: TRUE)';
+
+-- Drop the first version of the function
+DROP FUNCTION IF EXISTS public.validate_receipt(p_qr_id UUID, p_receipt_data JSONB);
+
+-- Drop the second version of the function
+DROP FUNCTION IF EXISTS public.validate_receipt(p_receipt_data JSONB, p_qr_id UUID);
+
+CREATE OR REPLACE FUNCTION public.validate_receipt(p_qr_id UUID, p_receipt_data JSONB)
+RETURNS JSONB AS $$
+DECLARE
+  v_campaign_record RECORD;
+  v_receipt_total NUMERIC;
+BEGIN
+  -- Check for required fields in the receipt data
+  IF p_receipt_data->>'total' IS NULL THEN
+    RETURN jsonb_build_object(
+      'is_valid', false,
+      'message', 'Receipt data is missing the total amount.',
+      'error_code', 'MISSING_TOTAL'
+    );
+  END IF;
+
+  -- Safely parse the total amount from the receipt
+  BEGIN
+    v_receipt_total := (p_receipt_data->>'total')::NUMERIC;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object(
+      'is_valid', false,
+      'message', 'Receipt total is not a valid number.',
+      'error_code', 'INVALID_TOTAL'
+    );
+  END;
+
+  -- Get campaign details and check if it's active and within the date range
+  SELECT * INTO v_campaign_record
+  FROM public.campaigns c
+  JOIN public.qr_codes q ON c.id = q.campaign_id
+  WHERE q.id = p_qr_id;
+
+  IF NOT FOUND THEN
+      RETURN jsonb_build_object(
+          'is_valid', false, 
+          'message', 'No campaign found for this QR code.',
+          'error_code', 'CAMPAIGN_NOT_FOUND'
+      );
+  END IF;
+
+  IF v_campaign_record.is_active != TRUE THEN
+      RETURN jsonb_build_object(
+          'is_valid', false, 
+          'message', 'This campaign is not currently active.',
+          'error_code', 'CAMPAIGN_INACTIVE'
+      );
+  END IF;
+
+  IF CURRENT_TIMESTAMP NOT BETWEEN v_campaign_record.start_date AND v_campaign_record.end_date THEN
+      RETURN jsonb_build_object(
+          'is_valid', false, 
+          'message', 'This campaign has expired or has not yet started.',
+          'error_code', 'CAMPAIGN_EXPIRED'
+      );
+  END IF;
+
+  -- If all checks pass, return a success object
+  RETURN jsonb_build_object('is_valid', true);
+
+EXCEPTION WHEN OTHERS THEN
+  -- Catch any other unexpected server errors
+  RETURN jsonb_build_object(
+    'is_valid', false,
+    'message', SQLERRM,
+    'error_code', 'SERVER_ERROR'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 
