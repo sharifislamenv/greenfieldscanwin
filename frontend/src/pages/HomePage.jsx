@@ -7,114 +7,139 @@ import Chart from 'react-apexcharts';
 import './HomePage.css';
 
 const HomePage = () => {
+  // Authentication states
   const [user, setUser] = useState(null);
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  
+  // App states
   const [userStats, setUserStats] = useState({ points: 0, level: 1, badges: [] });
   const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [analytics, setAnalytics] = useState({ scans: 0, shares: 0, redemptions: 0 });
   const [scanStatus, setScanStatus] = useState('idle');
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authMessage, setAuthMessage] = useState({ type: '', text: '' });
-  const [authLoading, setAuthLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Check for existing session on mount
   useEffect(() => {
-    const fetchData = async () => {
-      // Get user session
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      
-      if (user) {
-        // Get user stats
-        const { data: stats } = await supabase
-          .from('users')
-          .select('points, level, badges')
-          .eq('id', user.id)
-          .single();
-        
-        if (stats) setUserStats(stats);
-        
-        // Get active campaigns
-        const { data: campaigns } = await supabase
-          .from('campaigns')
-          .select('*')
-          .gte('end_date', new Date().toISOString());
-        
-        setActiveCampaigns(campaigns || []);
-        
-        // Get top 5 leaderboard
-        const { data: leaderboardData } = await supabase
-          .from('leaderboard')
-          .select('*')
-          .order('total_points', { ascending: false })
-          .limit(5);
-        
-        setLeaderboard(leaderboardData || []);
-        
-        // Get analytics
-        const { count: scans } = await supabase
-          .from('scans')
-          .select('*', { count: 'exact' });
-        
-        const { count: shares } = await supabase
-          .from('social_shares')
-          .select('*', { count: 'exact' });
-        
-        const { count: redemptions } = await supabase
-          .from('user_rewards')
-          .select('*', { count: 'exact' });
-        
-        setAnalytics({
-          scans: scans || 0,
-          shares: shares || 0,
-          redemptions: redemptions || 0
-        });
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        fetchUserData(session.user.id);
       }
     };
     
-    fetchData();
+    checkSession();
   }, []);
 
+  // Fetch user data when authenticated
+  const fetchUserData = async (userId) => {
+    const { data: stats } = await supabase
+      .from('users')
+      .select('points, level, badges')
+      .eq('id', userId)
+      .single();
+    
+    if (stats) setUserStats(stats);
+  };
+
+  // Fetch public data regardless of auth state
+  useEffect(() => {
+    const fetchPublicData = async () => {
+      // Active campaigns
+      const { data: campaigns } = await supabase
+        .from('campaigns')
+        .select('*')
+        .gte('end_date', new Date().toISOString());
+      
+      setActiveCampaigns(campaigns || []);
+      
+      // Leaderboard
+      const { data: leaderboardData } = await supabase
+        .from('leaderboard')
+        .select('*')
+        .order('total_points', { ascending: false })
+        .limit(5);
+      
+      setLeaderboard(leaderboardData || []);
+      
+      // Analytics
+      const { count: scans } = await supabase
+        .from('scans')
+        .select('*', { count: 'exact' });
+      
+      const { count: shares } = await supabase
+        .from('social_shares')
+        .select('*', { count: 'exact' });
+      
+      const { count: redemptions } = await supabase
+        .from('user_rewards')
+        .select('*', { count: 'exact' });
+      
+      setAnalytics({
+        scans: scans || 0,
+        shares: shares || 0,
+        redemptions: redemptions || 0
+      });
+    };
+    
+    fetchPublicData();
+  }, []);
+
+  // Handle authentication
   const handleAuth = async (e) => {
     e.preventDefault();
-    setAuthLoading(true);
-    setAuthMessage({ type: '', text: '' });
+    setIsAuthLoading(true);
+    setAuthError('');
+    setAuthSuccess('');
 
     try {
+      // Form validation
+      if (authMode === 'signup' && password !== confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+
       if (authMode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ 
-          email: authEmail, 
-          password: authPassword 
-        });
+        // Login user
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setAuthMessage({ type: 'success', text: 'Login successful!' });
-        // Refresh user data after login
+        
+        setAuthSuccess('Login successful!');
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+        fetchUserData(user.id);
       } else {
-        const { error } = await supabase.auth.signUp({ 
-          email: authEmail, 
-          password: authPassword 
-        });
+        // Sign up user
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setAuthMessage({ type: 'success', text: 'Check your email for confirmation!' });
-        // Log user in after signup
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
+        
+        setAuthSuccess(`Success! Check ${email} for confirmation.`);
+        setAuthMode('login');
       }
     } catch (error) {
-      setAuthMessage({ type: 'error', text: error.message });
+      setAuthError(error.message);
     } finally {
-      setAuthLoading(false);
+      setIsAuthLoading(false);
     }
   };
 
+  // Handle logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserStats({ points: 0, level: 1, badges: [] });
+    setAuthSuccess('You have been logged out');
+  };
+
+  // Handle scanning
   const handleStartScanning = () => {
-    if (user) {
-      navigate('/scan');
-    }
+    navigate('/scan');
   };
 
   const simulateScan = () => {
@@ -154,78 +179,119 @@ const HomePage = () => {
     </div>
   );
 
-  // Auth form component for homepage
-  const renderAuthForm = () => (
-    <div className="home-auth-form">
-      <h2>{authMode === 'login' ? 'Login to Your Account' : 'Create an Account'}</h2>
-      
-      {authMessage.text && (
-        <div className={`auth-message ${authMessage.type}`}>
-          {authMessage.text}
-        </div>
-      )}
-      
-      <form onSubmit={handleAuth}>
-        <div className="form-group">
-          <label>Email</label>
-          <input 
-            type="email" 
-            value={authEmail}
-            onChange={(e) => setAuthEmail(e.target.value)}
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Password</label>
-          <input 
-            type="password" 
-            value={authPassword}
-            onChange={(e) => setAuthPassword(e.target.value)}
-            required
-            minLength="6"
-          />
-        </div>
-        
-        <button 
-          type="submit" 
-          className="auth-button"
-          disabled={authLoading}
-        >
-          {authLoading ? 'Processing...' : authMode === 'login' ? 'Login' : 'Sign Up'}
-        </button>
-      </form>
-      
-      <div className="auth-switch">
-        {authMode === 'login' ? (
-          <p>
-            Don't have an account?{' '}
-            <button onClick={() => setAuthMode('signup')}>Sign Up</button>
-          </p>
-        ) : (
-          <p>
-            Already have an account?{' '}
-            <button onClick={() => setAuthMode('login')}>Login</button>
-          </p>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div className="home-page">
+      {/* Top Navigation Bar */}
+      <div className="top-nav">
+        <div className="nav-logo">Greenfield Scan & Win</div>
+        <div className="nav-auth">
+          {user ? (
+            <div className="user-nav">
+              <span className="user-email">{user.email}</span>
+              <button className="nav-button" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="auth-toggle">
+              <button 
+                className={`nav-button ${authMode === 'login' ? 'active' : ''}`}
+                onClick={() => setAuthMode('login')}
+              >
+                Login
+              </button>
+              <button 
+                className={`nav-button ${authMode === 'signup' ? 'active' : ''}`}
+                onClick={() => setAuthMode('signup')}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="hero-section">
         <div className="hero-content">
-          <h1>Greenfield Scan & Win</h1>
-          <p>Scan QR codes in-store to unlock exclusive rewards and experiences!</p>
+          <h1>Scan QR Codes, Win Rewards</h1>
+          <p>Discover exclusive offers and experiences with Greenfield products</p>
           
           {user ? (
             <button className="cta-button" onClick={handleStartScanning}>
               Start Scanning
             </button>
           ) : (
-            renderAuthForm()
+            <div className="auth-container">
+              <h2>{authMode === 'login' ? 'Login to Your Account' : 'Create Account'}</h2>
+              
+              {authError && <div className="auth-message error">{authError}</div>}
+              {authSuccess && <div className="auth-message success">{authSuccess}</div>}
+              
+              <form onSubmit={handleAuth}>
+                <div className="form-group">
+                  <input 
+                    type="email" 
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <input 
+                    type="password" 
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength="6"
+                  />
+                </div>
+                
+                {authMode === 'signup' && (
+                  <div className="form-group">
+                    <input 
+                      type="password" 
+                      placeholder="Confirm password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength="6"
+                    />
+                  </div>
+                )}
+                
+                <button 
+                  type="submit" 
+                  className="auth-button"
+                  disabled={isAuthLoading}
+                >
+                  {isAuthLoading ? (
+                    <span className="spinner"></span>
+                  ) : authMode === 'login' ? (
+                    'Login'
+                  ) : (
+                    'Sign Up'
+                  )}
+                </button>
+              </form>
+              
+              <div className="auth-footer">
+                {authMode === 'login' ? (
+                  <p>
+                    Don't have an account?{' '}
+                    <button onClick={() => setAuthMode('signup')}>Sign Up</button>
+                  </p>
+                ) : (
+                  <p>
+                    Already have an account?{' '}
+                    <button onClick={() => setAuthMode('login')}>Login</button>
+                  </p>
+                )}
+              </div>
+            </div>
           )}
         </div>
         <div className="hero-image">
@@ -234,7 +300,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* User Stats Section - Only show if logged in */}
+      {/* User Stats Section */}
       {user && (
         <div className="stats-section">
           <h2>Your Progress</h2>
@@ -290,16 +356,20 @@ const HomePage = () => {
             <button 
               className={`scan-button ${scanStatus === 'scanning' ? 'scanning' : ''}`}
               onClick={simulateScan}
-              disabled={scanStatus === 'scanning'}
+              disabled={scanStatus === 'scanning' || !user}
             >
-              {scanStatus === 'scanning' ? 'Scanning...' : 'Scan QR Code'}
+              {scanStatus === 'scanning' 
+                ? 'Scanning...' 
+                : user 
+                  ? 'Scan QR Code' 
+                  : 'Login to Scan'}
             </button>
             <p className="scan-tip">Scan QR codes on Greenfield products in-store to unlock rewards</p>
           </div>
         </div>
       </div>
 
-      {/* Campaigns Section - Visible to all */}
+      {/* Public Sections */}
       <div className="campaigns-section">
         <h2>Active Campaigns</h2>
         <div className="campaigns-grid">
@@ -311,7 +381,6 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Leaderboard Section - Visible to all */}
       <div className="leaderboard-section">
         <h2>Top Participants</h2>
         <div className="leaderboard-container">
@@ -338,7 +407,6 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Analytics Section - Visible to all */}
       <div className="analytics-section">
         <h2>Campaign Analytics</h2>
         <div className="analytics-grid">
@@ -372,7 +440,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Social Sharing Section - Only show if logged in */}
+      {/* Social Sharing */}
       {user && (
         <div className="social-section">
           <h2>Share Your Progress</h2>

@@ -5,6 +5,177 @@
   color: #333;
 }
 
+/* Top Navigation */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.nav-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2563eb;
+}
+
+.nav-auth {
+  display: flex;
+  align-items: center;
+}
+
+.auth-toggle {
+  display: flex;
+  gap: 10px;
+}
+
+.user-nav {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-email {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.nav-button {
+  background: #f1f5f9;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.nav-button:hover {
+  background: #e2e8f0;
+}
+
+.nav-button.active {
+  background: #2563eb;
+  color: white;
+}
+
+/* Auth Container */
+.auth-container {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  max-width: 450px;
+  margin-top: 20px;
+}
+
+.auth-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.auth-container .form-group {
+  margin-bottom: 15px;
+}
+
+.auth-container input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.auth-container input:focus {
+  border-color: #3498db;
+  outline: none;
+}
+
+.auth-button {
+  width: 100%;
+  padding: 12px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.auth-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.auth-button:not(:disabled):hover {
+  background: #2980b9;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 15px;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.auth-footer button {
+  background: none;
+  border: none;
+  color: #3498db;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+}
+
+.auth-footer button:hover {
+  text-decoration: underline;
+}
+
+.auth-message {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.auth-message.success {
+  background: #d5f5e3;
+  color: #27ae60;
+}
+
+.auth-message.error {
+  background: #fadbd8;
+  color: #c0392b;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Hero Section */
 .hero-section {
   display: flex;
@@ -17,6 +188,9 @@
 .hero-content {
   flex: 1;
   padding-right: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .hero-content h1 {
@@ -41,6 +215,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  align-self: flex-start;
 }
 
 .cta-button:hover {
@@ -299,6 +474,11 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
+.scan-button:disabled {
+  background: #e5e7eb;
+  cursor: not-allowed;
+}
+
 .scan-tip {
   margin-top: 15px;
   text-align: center;
@@ -499,117 +679,45 @@
   color: white;
 }
 
-/* Add to existing HomePage.css */
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hero-section {
+    flex-direction: column;
+    padding: 30px 0;
+  }
 
-/* Auth Form in Hero Section */
-.home-auth-form {
-  background: white;
-  padding: 25px;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  max-width: 450px;
-  margin: 20px 0;
-}
+  .hero-content {
+    padding-right: 0;
+    margin-bottom: 30px;
+    text-align: center;
+  }
 
-.home-auth-form h2 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #2c3e50;
-  font-size: 1.5rem;
-}
+  .cta-button {
+    align-self: center;
+  }
 
-.home-auth-form .form-group {
-  margin-bottom: 15px;
-}
+  .stats-grid,
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
 
-.home-auth-form .form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: #4b5563;
-}
+  .auth-container {
+    width: 100%;
+    padding: 20px;
+  }
 
-.home-auth-form .form-group input {
-  width: 100%;
-  padding: 12px 15px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s;
-}
+  .top-nav {
+    flex-direction: column;
+    gap: 15px;
+  }
 
-.home-auth-form .form-group input:focus {
-  border-color: #3498db;
-  outline: none;
-}
+  .nav-auth {
+    width: 100%;
+    justify-content: center;
+  }
 
-.home-auth-form .auth-button {
-  width: 100%;
-  padding: 12px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.3s;
-  margin-top: 10px;
-}
-
-.home-auth-form .auth-button:disabled {
-  background: #bdc3c7;
-  cursor: not-allowed;
-}
-
-.home-auth-form .auth-button:not(:disabled):hover {
-  background: #2980b9;
-}
-
-.home-auth-form .auth-switch {
-  text-align: center;
-  margin-top: 15px;
-  color: #7f8c8d;
-  font-size: 0.9rem;
-}
-
-.home-auth-form .auth-switch button {
-  background: none;
-  border: none;
-  color: #3498db;
-  cursor: pointer;
-  padding: 0;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.home-auth-form .auth-switch button:hover {
-  text-decoration: underline;
-}
-
-.auth-message {
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 15px;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-.auth-message.success {
-  background: #d5f5e3;
-  color: #27ae60;
-}
-
-.auth-message.error {
-  background: #fadbd8;
-  color: #c0392b;
-}
-
-/* Adjust hero content for auth form */
-.hero-content {
-  flex: 1;
-  padding-right: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  .user-nav {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
