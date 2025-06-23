@@ -498,3 +498,118 @@
   background: #1da1f2;
   color: white;
 }
+
+/* Add to existing HomePage.css */
+
+/* Auth Form in Hero Section */
+.home-auth-form {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  max-width: 450px;
+  margin: 20px 0;
+}
+
+.home-auth-form h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.home-auth-form .form-group {
+  margin-bottom: 15px;
+}
+
+.home-auth-form .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.home-auth-form .form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.home-auth-form .form-group input:focus {
+  border-color: #3498db;
+  outline: none;
+}
+
+.home-auth-form .auth-button {
+  width: 100%;
+  padding: 12px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-top: 10px;
+}
+
+.home-auth-form .auth-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.home-auth-form .auth-button:not(:disabled):hover {
+  background: #2980b9;
+}
+
+.home-auth-form .auth-switch {
+  text-align: center;
+  margin-top: 15px;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.home-auth-form .auth-switch button {
+  background: none;
+  border: none;
+  color: #3498db;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.home-auth-form .auth-switch button:hover {
+  text-decoration: underline;
+}
+
+.auth-message {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.auth-message.success {
+  background: #d5f5e3;
+  color: #27ae60;
+}
+
+.auth-message.error {
+  background: #fadbd8;
+  color: #c0392b;
+}
+
+/* Adjust hero content for auth form */
+.hero-content {
+  flex: 1;
+  padding-right: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

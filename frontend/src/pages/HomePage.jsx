@@ -13,6 +13,11 @@ const HomePage = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [analytics, setAnalytics] = useState({ scans: 0, shares: 0, redemptions: 0 });
   const [scanStatus, setScanStatus] = useState('idle');
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authMessage, setAuthMessage] = useState({ type: '', text: '' });
+  const [authLoading, setAuthLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -72,11 +77,43 @@ const HomePage = () => {
     fetchData();
   }, []);
 
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthMessage({ type: '', text: '' });
+
+    try {
+      if (authMode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email: authEmail, 
+          password: authPassword 
+        });
+        if (error) throw error;
+        setAuthMessage({ type: 'success', text: 'Login successful!' });
+        // Refresh user data after login
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      } else {
+        const { error } = await supabase.auth.signUp({ 
+          email: authEmail, 
+          password: authPassword 
+        });
+        if (error) throw error;
+        setAuthMessage({ type: 'success', text: 'Check your email for confirmation!' });
+        // Log user in after signup
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      }
+    } catch (error) {
+      setAuthMessage({ type: 'error', text: error.message });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleStartScanning = () => {
     if (user) {
       navigate('/scan');
-    } else {
-      navigate('/auth');
     }
   };
 
@@ -90,7 +127,6 @@ const HomePage = () => {
 
   const handleSocialShare = (platform) => {
     console.log(`Shared on ${platform}`);
-    // In a real app, this would trigger actual social sharing
   };
 
   const renderLevelProgress = () => {
@@ -118,6 +154,64 @@ const HomePage = () => {
     </div>
   );
 
+  // Auth form component for homepage
+  const renderAuthForm = () => (
+    <div className="home-auth-form">
+      <h2>{authMode === 'login' ? 'Login to Your Account' : 'Create an Account'}</h2>
+      
+      {authMessage.text && (
+        <div className={`auth-message ${authMessage.type}`}>
+          {authMessage.text}
+        </div>
+      )}
+      
+      <form onSubmit={handleAuth}>
+        <div className="form-group">
+          <label>Email</label>
+          <input 
+            type="email" 
+            value={authEmail}
+            onChange={(e) => setAuthEmail(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Password</label>
+          <input 
+            type="password" 
+            value={authPassword}
+            onChange={(e) => setAuthPassword(e.target.value)}
+            required
+            minLength="6"
+          />
+        </div>
+        
+        <button 
+          type="submit" 
+          className="auth-button"
+          disabled={authLoading}
+        >
+          {authLoading ? 'Processing...' : authMode === 'login' ? 'Login' : 'Sign Up'}
+        </button>
+      </form>
+      
+      <div className="auth-switch">
+        {authMode === 'login' ? (
+          <p>
+            Don't have an account?{' '}
+            <button onClick={() => setAuthMode('signup')}>Sign Up</button>
+          </p>
+        ) : (
+          <p>
+            Already have an account?{' '}
+            <button onClick={() => setAuthMode('login')}>Login</button>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="home-page">
       {/* Hero Section */}
@@ -125,9 +219,14 @@ const HomePage = () => {
         <div className="hero-content">
           <h1>Greenfield Scan & Win</h1>
           <p>Scan QR codes in-store to unlock exclusive rewards and experiences!</p>
-          <button className="cta-button" onClick={handleStartScanning}>
-            {user ? 'Start Scanning' : 'Get Started'}
-          </button>
+          
+          {user ? (
+            <button className="cta-button" onClick={handleStartScanning}>
+              Start Scanning
+            </button>
+          ) : (
+            renderAuthForm()
+          )}
         </div>
         <div className="hero-image">
           <div className="qr-code-placeholder"></div>
@@ -135,7 +234,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* User Stats Section */}
+      {/* User Stats Section - Only show if logged in */}
       {user && (
         <div className="stats-section">
           <h2>Your Progress</h2>
@@ -200,7 +299,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Campaigns Section */}
+      {/* Campaigns Section - Visible to all */}
       <div className="campaigns-section">
         <h2>Active Campaigns</h2>
         <div className="campaigns-grid">
@@ -212,7 +311,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Leaderboard Section */}
+      {/* Leaderboard Section - Visible to all */}
       <div className="leaderboard-section">
         <h2>Top Participants</h2>
         <div className="leaderboard-container">
@@ -239,7 +338,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Analytics Section */}
+      {/* Analytics Section - Visible to all */}
       <div className="analytics-section">
         <h2>Campaign Analytics</h2>
         <div className="analytics-grid">
@@ -273,32 +372,34 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Social Sharing Section */}
-      <div className="social-section">
-        <h2>Share Your Progress</h2>
-        <p>Share your achievements and invite friends to join the fun!</p>
-        <div className="social-buttons">
-          <FacebookShareButton
-            url={window.location.href}
-            quote={"I'm participating in Greenfield's Scan & Win challenge!"}
-            onClick={() => handleSocialShare('facebook')}
-          >
-            <button className="social-button facebook">
-              Share on Facebook
-            </button>
-          </FacebookShareButton>
-          
-          <TwitterShareButton
-            url={window.location.href}
-            title={"Join me in Greenfield's Scan & Win challenge! #GreenfieldLights"}
-            onClick={() => handleSocialShare('twitter')}
-          >
-            <button className="social-button twitter">
-              Share on Twitter
-            </button>
-          </TwitterShareButton>
+      {/* Social Sharing Section - Only show if logged in */}
+      {user && (
+        <div className="social-section">
+          <h2>Share Your Progress</h2>
+          <p>Share your achievements and invite friends to join the fun!</p>
+          <div className="social-buttons">
+            <FacebookShareButton
+              url={window.location.href}
+              quote={"I'm participating in Greenfield's Scan & Win challenge!"}
+              onClick={() => handleSocialShare('facebook')}
+            >
+              <button className="social-button facebook">
+                Share on Facebook
+              </button>
+            </FacebookShareButton>
+            
+            <TwitterShareButton
+              url={window.location.href}
+              title={"Join me in Greenfield's Scan & Win challenge! #GreenfieldLights"}
+              onClick={() => handleSocialShare('twitter')}
+            >
+              <button className="social-button twitter">
+                Share on Twitter
+              </button>
+            </TwitterShareButton>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
