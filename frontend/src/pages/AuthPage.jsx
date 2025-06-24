@@ -1,5 +1,6 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import './AuthPage.css';
 
@@ -7,9 +8,10 @@ const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [mode, setMode] = useState('login'); // 'login', 'signup', or 'reset'
+  const [mode, setMode] = useState('login');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const navigate = useNavigate();
 
   // Handle expired email links
   useEffect(() => {
@@ -22,7 +24,6 @@ const AuthPage = () => {
         type: 'error', 
         text: 'Email link is invalid or has expired. Please login again.' 
       });
-      // Clear URL params
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);

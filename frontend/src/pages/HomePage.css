@@ -751,6 +751,7 @@
 /* Password reset link */
 .auth-footer .password-reset {
   margin-top: 15px;
+  text-align: center;
 }
 
 .auth-footer .password-reset button {
@@ -764,6 +765,23 @@
 
 .auth-footer .password-reset button:hover {
   text-decoration: underline;
+}
+
+/* Scan button styling */
+.scanner-controls .scan-button {
+  width: 200px;
+  margin: 0 auto;
+}
+
+/* Campaign card height */
+.campaign-card {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.campaign-reward {
+  margin-top: auto;
 }
 
 /* Leaderboard styling */

@@ -1,4 +1,5 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\components\CampaignManager.jsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 

@@ -114,20 +114,19 @@ const ScanPage = () => {
         const position = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: true,
-            timeout: 15000,  // Increased timeout
+            timeout: 15000,
             maximumAge: 0
           });
         });
 
         const { latitude: userLat, longitude: userLng } = position.coords;
         const distance = calculateDistance(
-          qrData.lat, 
+          q极狐Data.lat, 
           qrData.lng, 
           userLat, 
           userLng
         );
 
-        // Production-ready distance check (100 meters)
         if (distance > 100) {
           setError(`You're ${Math.round(distance)}m away - must be within 100m of store`);
           setStep('error');
@@ -164,7 +163,6 @@ const ScanPage = () => {
         throw new Error('Please upload a valid image file (JPEG/PNG)');
       }
   
-      // Process image through OCR
       const text = await processReceiptImage(file);
       
       const receiptData = {
@@ -174,7 +172,6 @@ const ScanPage = () => {
         total: extractTotal(text)
       };
   
-      // Validate receipt with Supabase
       const { data: validation, error: rpcError } = await supabase.rpc('validate_receipt', {
         p_qr_id: qrData.qrId,
         p_receipt_data: receiptData
@@ -185,37 +182,19 @@ const ScanPage = () => {
         throw new Error(validation?.message || 'Receipt validation failed');
       }
   
-      // Get authenticated user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setStep('authentication-required');
         return;
       }
       
-      // Store user data for reward flow
       setUserData(user);
-      
-      // Award first reward
       await awardReward(user.id, 1);
       setStep('level-1-reward');
       
     } catch (err) {
       console.error('Receipt processing failed:', err);
       setError(err.message || 'Receipt processing error');
-
-      // Log error to Supabase
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from('error_logs').insert({
-          error_type: 'receipt_processing',
-          error_message: err.message,
-          qr_id: qrData?.qrId,
-          user_id: user?.id || null
-        });
-      } catch (logError) {
-        console.error("Error logging failed:", logError);
-      }
-      
       setStep('error');
     } finally {
       setIsProcessing(false);
@@ -249,14 +228,13 @@ const ScanPage = () => {
   };
 
   const extractItems = (text) => {
-    // Simplified item extraction
     const itemLines = text.split('\n')
       .filter(line => line.match(/\w+\s+\d+\.\d{2}/))
       .map(line => {
         const [name, price] = line.split(/\s{2,}/);
         return { name, price: parseFloat(price) };
       });
-    return itemLines.slice(0, 5); // Return max 5 items
+    return itemLines.slice(0, 5);
   };
 
   const extractTotal = (text) => {
