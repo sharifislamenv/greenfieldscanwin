@@ -393,4 +393,45 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 --
 CREATE UNIQUE INDEX IF NOT EXISTS leaderboard_unique_user_id_idx ON public.leaderboard(id);
 
+--
+-- Create these in your Supabase database
+
+-- Weekly scan data function
+CREATE OR REPLACE FUNCTION get_weekly_scan_data()
+RETURNS integer[] AS $$
+DECLARE
+  result integer[];
+BEGIN
+  SELECT ARRAY[
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 6),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 5),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 4),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 3),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 2),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 1),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)
+  ] INTO result FROM scans;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Weekly share data function
+CREATE OR REPLACE FUNCTION get_weekly_share_data()
+RETURNS integer[] AS $$
+DECLARE
+  result integer[];
+BEGIN
+  SELECT ARRAY[
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 6),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 5),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 4),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 3),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 2),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 1),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)
+  ] INTO result FROM social_shares;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
 

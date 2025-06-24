@@ -60,7 +60,7 @@ const ResetPasswordPage = () => {
         <button 
           type="submit" 
           className="auth-button"
-          disabled极狐={loading}
+          disabled={loading}
         >
           {loading ? 'Sending...' : 'Send Reset Email'}
         </button>
