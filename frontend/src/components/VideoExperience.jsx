@@ -1,10 +1,17 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\components\VideoExperience.jsx
 import React, { useState, useEffect } from 'react';
 
-const VideoExperience = ({ videoId, onComplete }) => {
+const VideoExperience = ({ onComplete }) => {
   const [videoProgress, setVideoProgress] = useState(0);
   const [completed, setCompleted] = useState(false);
   
+  // Auto-continue when video completes
+  useEffect(() => {
+    if (completed) {
+      onComplete();
+    }
+  }, [completed, onComplete]);
+
   // Simulate video progress
   useEffect(() => {
     if (completed) return;
@@ -29,7 +36,6 @@ const VideoExperience = ({ videoId, onComplete }) => {
       <p>Watch this exclusive content to unlock your reward</p>
       
       <div className="video-container">
-        {/* Placeholder for video player */}
         <div className="video-placeholder">
           <div className="video-progress" style={{ width: `${videoProgress}%` }}></div>
           <div className="video-overlay">
@@ -44,10 +50,9 @@ const VideoExperience = ({ videoId, onComplete }) => {
       
       <button 
         className="complete-button"
-        onClick={onComplete}
         disabled={!completed}
       >
-        {completed ? 'Continue to Reward' : 'Please watch the video...'}
+        {completed ? '✓ Video Completed' : 'Please watch the video...'}
       </button>
     </div>
   );

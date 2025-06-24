@@ -1,7 +1,5 @@
 // D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.jsx
 
-// D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Tesseract from 'tesseract.js';
@@ -12,7 +10,6 @@ import ReferralProgram from '../components/ReferralProgram';
 import VideoExperience from '../components/VideoExperience';
 import CryptoJS from 'crypto-js';
 
-// Rewards structure defined outside component for consistency
 const REWARDS = {
   1: { type: 'coupon', value: '10OFF', points: 50, description: '10% discount on next purchase' },
   2: { type: 'content', value: 'Exclusive Content', points: 100, description: 'Premium content unlocked' },
@@ -21,7 +18,6 @@ const REWARDS = {
 };
 
 const ScanPage = () => {
-  // State management
   const [step, setStep] = useState('verifying');
   const [qrData, setQrData] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -253,7 +249,7 @@ const ScanPage = () => {
   };
 
   const extractItems = (text) => {
-    // Simplified item extraction (real implementation would be more complex)
+    // Simplified item extraction
     const itemLines = text.split('\n')
       .filter(line => line.match(/\w+\s+\d+\.\d{2}/))
       .map(line => {
@@ -324,13 +320,13 @@ const ScanPage = () => {
           <RewardUnlock 
             level={1} 
             reward={REWARDS[1]} 
-            onContinue={() => setStep('level-2-challenge')} 
+            onContinue={() => setStep('video-experience')} 
           />
         );
       
-      case 'level-2-challenge':
+      case 'video-experience':
         return (
-          <SocialChallenge 
+          <VideoExperience 
             onComplete={async () => {
               await awardReward(userData.id, 2);
               setStep('level-2-reward');
@@ -343,13 +339,13 @@ const ScanPage = () => {
           <RewardUnlock 
             level={2} 
             reward={REWARDS[2]} 
-            onContinue={() => setStep('referral-program')} 
+            onContinue={() => setStep('social-challenge')} 
           />
         );
       
-      case 'referral-program':
+      case 'social-challenge':
         return (
-          <ReferralProgram 
+          <SocialChallenge 
             onComplete={async () => {
               await awardReward(userData.id, 3);
               setStep('level-3-reward');
@@ -362,13 +358,13 @@ const ScanPage = () => {
           <RewardUnlock 
             level={3} 
             reward={REWARDS[3]} 
-            onContinue={() => setStep('video-experience')} 
+            onContinue={() => setStep('referral-program')} 
           />
         );
       
-      case 'video-experience':
+      case 'referral-program':
         return (
-          <VideoExperience 
+          <ReferralProgram 
             onComplete={async () => {
               await awardReward(userData.id, 4);
               setStep('level-4-reward');
@@ -381,7 +377,7 @@ const ScanPage = () => {
           <RewardUnlock 
             level={4} 
             reward={REWARDS[4]} 
-            onContinue={() => navigate('/dashboard')} 
+            onContinue={() => navigate('/')} 
           />
         );
       

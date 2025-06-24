@@ -365,4 +365,32 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Add this to the end of your 000_init.sql file
+CREATE OR REPLACE FUNCTION public.update_user_progress(
+    p_user_id UUID,
+    p_points INTEGER,
+    p_level INTEGER
+)
+RETURNS VOID AS $$
+BEGIN
+    -- Update user's points and level
+    UPDATE public.users
+    SET 
+        points = points + p_points,
+        level = GREATEST(level, p_level) -- Only update level if higher
+    WHERE id = p_user_id;
+    
+    -- Add reward to user_rewards table
+    INSERT INTO public.user_rewards (user_id, reward_level)
+    VALUES (p_user_id, p_level)
+    ON CONFLICT DO NOTHING;
+    
+    -- Refresh leaderboard
+    REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+--
+CREATE UNIQUE INDEX IF NOT EXISTS leaderboard_unique_user_id_idx ON public.leaderboard(id);
+
 

@@ -125,6 +125,25 @@ const CampaignManager = () => {
     });
   };
 
+  const createSummerLaunch = () => {
+    setNewCampaign({
+      name: 'Summer Launch 2025',
+      description: 'Campaign for the launch of our new summer product line',
+      type: 'seasonal',
+      start_date: new Date('2025-06-01').toISOString(),
+      end_date: new Date('2025-08-31').toISOString(),
+      rules: {
+        min_scans: 2,
+        min_purchases: 1,
+        required_items: ['Summer Product 1', 'Summer Product 2']
+      },
+      reward: {
+        type: 'discount',
+        value: '20% Off Summer Collection'
+      }
+    });
+  };
+
   return (
     <div className="campaign-manager">
       <h2>Campaign Management</h2>
@@ -133,6 +152,7 @@ const CampaignManager = () => {
         <button onClick={createHolidayScavengerHunt}>Create Holiday Hunt</button>
         <button onClick={createProductLaunch}>New Product Launch</button>
         <button onClick={createGlobalQuest}>Global QR Quest</button>
+        <button onClick={createSummerLaunch}>Summer Launch</button>
       </div>
       
       <div className="campaign-form">

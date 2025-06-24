@@ -9,7 +9,7 @@ import './HomePage.css';
 const HomePage = () => {
   // Authentication states
   const [user, setUser] = useState(null);
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,7 +21,22 @@ const HomePage = () => {
   const [userStats, setUserStats] = useState({ points: 0, level: 1, badges: [] });
   const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [analytics, setAnalytics] = useState({ scans: 0, shares: 0, redemptions: 0 });
+  const [analytics, setAnalytics] = useState({ 
+    scans: 0, 
+    shares: 0, 
+    redemptions: 0,
+    chartData: {
+      options: {
+        chart: { id: 'activity-chart' },
+        xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }
+      },
+      series: [
+        { name: 'Scans', data: [0,0,0,0,0,0,0] },
+        { name: 'Shares', data: [0,0,0,0,0,0,0] }
+      ]
+    }
+  });
+  
   const [scanStatus, setScanStatus] = useState('idle');
   const navigate = useNavigate();
 
@@ -52,41 +67,61 @@ const HomePage = () => {
   // Fetch public data regardless of auth state
   useEffect(() => {
     const fetchPublicData = async () => {
-      // Active campaigns
-      const { data: campaigns } = await supabase
-        .from('campaigns')
-        .select('*')
-        .gte('end_date', new Date().toISOString());
-      
-      setActiveCampaigns(campaigns || []);
-      
-      // Leaderboard
-      const { data: leaderboardData } = await supabase
-        .from('leaderboard')
-        .select('*')
-        .order('total_points', { ascending: false })
-        .limit(5);
-      
-      setLeaderboard(leaderboardData || []);
-      
-      // Analytics
-      const { count: scans } = await supabase
-        .from('scans')
-        .select('*', { count: 'exact' });
-      
-      const { count: shares } = await supabase
-        .from('social_shares')
-        .select('*', { count: 'exact' });
-      
-      const { count: redemptions } = await supabase
-        .from('user_rewards')
-        .select('*', { count: 'exact' });
-      
-      setAnalytics({
-        scans: scans || 0,
-        shares: shares || 0,
-        redemptions: redemptions || 0
-      });
+      try {
+        const today = new Date().toISOString();
+        
+        // Active campaigns (current date between start and end dates)
+        const { data: campaigns } = await supabase
+          .from('campaigns')
+          .select('*')
+          .lte('start_date', today)
+          .gte('end_date', today);
+        
+        setActiveCampaigns(campaigns || []);
+        
+        // Leaderboard (only show users with points)
+        const { data: leaderboardData } = await supabase
+          .from('leaderboard')
+          .select('*')
+          .gt('total_points', 0)
+          .order('total_points', { ascending: false })
+          .limit(5);
+        
+        setLeaderboard(leaderboardData || []);
+        
+        // Analytics
+        const { count: scans } = await supabase
+          .from('scans')
+          .select('*', { count: 'exact' });
+        
+        const { count: shares } = await supabase
+          .from('social_shares')
+          .select('*', { count: 'exact' });
+        
+        const { count: redemptions } = await supabase
+          .from('user_rewards')
+          .select('*', { count: 'exact' });
+        
+        // Get chart data
+        const { data: scanData } = await supabase.rpc('get_weekly_scan_data');
+        const { data: shareData } = await supabase.rpc('get_weekly_share_data');
+        
+        setAnalytics(prev => ({
+          ...prev,
+          scans: scans || 0,
+          shares: shares || 0,
+          redemptions: redemptions || 0,
+          chartData: {
+            ...prev.chartData,
+            series: [
+              { name: 'Scans', data: scanData || [0,0,0,0,0,0,0] },
+              { name: 'Shares', data: shareData || [0,0,0,0,0,0,0] }
+            ]
+          }
+        }));
+      } catch (error) {
+        console.error('Error fetching public data:', error);
+      }
     };
     
     fetchPublicData();
@@ -280,10 +315,16 @@ const HomePage = () => {
               
               <div className="auth-footer">
                 {authMode === 'login' ? (
-                  <p>
-                    Don't have an account?{' '}
-                    <button onClick={() => setAuthMode('signup')}>Sign Up</button>
-                  </p>
+                  <>
+                    <p>
+                      Don't have an account?{' '}
+                      <button onClick={() => setAuthMode('signup')}>Sign Up</button>
+                    </p>
+                    <p className="password-reset">
+                      Forgot password?{' '}
+                      <button onClick={() => navigate('/reset')}>Reset Password</button>
+                    </p>
+                  </>
                 ) : (
                   <p>
                     Already have an account?{' '}
@@ -426,14 +467,8 @@ const HomePage = () => {
         
         <div className="analytics-chart">
           <Chart
-            options={{
-              chart: { id: 'activity-chart' },
-              xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }
-            }}
-            series={[
-              { name: 'Scans', data: [30, 40, 45, 50, 49, 60, 70] },
-              { name: 'Shares', data: [15, 20, 35, 25, 40, 45, 50] }
-            ]}
+            options={analytics.chartData.options}
+            series={analytics.chartData.series}
             type="bar"
             height={300}
           />
