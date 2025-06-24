@@ -250,7 +250,7 @@ const HomePage = () => {
       <div className="hero-section">
         <div className="hero-content">
           <h1>Scan QR Codes, Win Rewards</h1>
-          <p>Discover exclusive offers and experiences with Greenfield products</p>
+          <p>Discover exclusive offers and experiences within the Greenfield Ecosystem!</p>
           
           {user ? (
             <button className="cta-button" onClick={handleStartScanning}>
