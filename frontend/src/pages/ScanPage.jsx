@@ -121,7 +121,7 @@ const ScanPage = () => {
 
         const { latitude: userLat, longitude: userLng } = position.coords;
         const distance = calculateDistance(
-          q极狐Data.lat, 
+          qrData.lat, 
           qrData.lng, 
           userLat, 
           userLng
