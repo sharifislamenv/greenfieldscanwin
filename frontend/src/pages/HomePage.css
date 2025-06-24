@@ -679,64 +679,6 @@
   color: white;
 }
 
-/* CTA Section for non-authenticated users */
-.cta-section {
-  text-align: center;
-  padding: 50px 0;
-  margin: 40px 0;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  border-radius: 20px;
-}
-
-.cta-section h2 {
-  font-size: 2rem;
-  margin-bottom: 20px;
-  color: #2c3e50;
-}
-
-.cta-section p {
-  font-size: 1.2rem;
-  max-width: 600px;
-  margin: 0 auto 40px;
-  color: #4b5563;
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 30px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.feature-card {
-  background: white;
-  border-radius: 15px;
-  padding: 30px 20px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-10px);
-}
-
-.feature-icon {
-  font-size: 3rem;
-  margin-bottom: 20px;
-}
-
-.feature-card h3 {
-  margin: 0 0 15px 0;
-  color: #1e293b;
-}
-
-.feature-card p {
-  font-size: 1rem;
-  color: #64748b;
-  margin: 0;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .hero-section {
@@ -755,8 +697,7 @@
   }
 
   .stats-grid,
-  .analytics-grid,
-  .features-grid {
+  .analytics-grid {
     grid-template-columns: 1fr;
   }
 
