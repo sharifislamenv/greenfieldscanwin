@@ -1,4 +1,5 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -13,21 +14,6 @@ const AuthPage = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const navigate = useNavigate();
 
-  // Handle expired email links
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.substring(1));
-    const error = params.get('error');
-    const errorCode = params.get('error_code');
-    
-    if (error === 'access_denied' && errorCode === 'otp_expired') {
-      setMessage({ 
-        type: 'error', 
-        text: 'Email link is invalid or has expired. Please login again.' 
-      });
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -37,7 +23,8 @@ const AuthPage = () => {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setMessage({ type: 'success', text: 'Login successful!' });
+        setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
+        navigate('/');
       } else if (mode === 'signup') {
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match');
@@ -46,7 +33,7 @@ const AuthPage = () => {
         if (error) throw error;
         setMessage({ 
           type: 'success', 
-          text: `Success! Check ${email} for confirmation.` 
+          text: `Success! Please check ${email} to confirm your account.` 
         });
       }
     } catch (error) {
@@ -58,7 +45,7 @@ const AuthPage = () => {
 
   const handlePasswordReset = async () => {
     if (!email) {
-      setMessage({ type: 'error', text: 'Please enter your email address' });
+      setMessage({ type: 'error', text: 'Please enter your email address to receive a reset link.' });
       return;
     }
     
@@ -66,7 +53,10 @@ const AuthPage = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      // This function triggers the "Recovery" email template in Supabase
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: 'https://greenfieldscanwin.vercel.app/reset',
+      });
       if (error) throw error;
       
       setMessage({ 
@@ -83,9 +73,7 @@ const AuthPage = () => {
   return (
     <div className="auth-page">
       <h2>
-        {mode === 'login' ? 'Login' : 
-         mode === 'signup' ? 'Create Account' : 
-         'Reset Password'}
+        {mode === 'login' ? 'Login' : 'Create Account'}
       </h2>
       
       {message.text && (
@@ -94,7 +82,7 @@ const AuthPage = () => {
         </div>
       )}
       
-      <form onSubmit={mode !== 'reset' ? handleAuth : (e) => e.preventDefault()}>
+      <form onSubmit={handleAuth}>
         <div className="form-group">
           <label>Email</label>
           <input 
@@ -105,18 +93,16 @@ const AuthPage = () => {
           />
         </div>
         
-        {mode !== 'reset' && (
-          <div className="form-group">
-            <label>Password</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength="6"
-            />
-          </div>
-        )}
+        <div className="form-group">
+          <label>Password</label>
+          <input 
+            type="password" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength="6"
+          />
+        </div>
         
         {mode === 'signup' && (
           <div className="form-group">
@@ -131,24 +117,13 @@ const AuthPage = () => {
           </div>
         )}
         
-        {mode === 'reset' ? (
-          <button 
-            type="button" 
-            className="auth-button"
-            onClick={handlePasswordReset}
-            disabled={loading}
-          >
-            {loading ? 'Sending...' : 'Send Reset Email'}
-          </button>
-        ) : (
-          <button 
-            type="submit" 
-            className="auth-button"
-            disabled={loading}
-          >
-            {loading ? 'Processing...' : mode === 'login' ? 'Login' : 'Sign Up'}
-          </button>
-        )}
+        <button 
+          type="submit" 
+          className="auth-button"
+          disabled={loading}
+        >
+          {loading ? 'Processing...' : mode === 'login' ? 'Login' : 'Sign Up'}
+        </button>
       </form>
       
       <div className="auth-switch">
@@ -156,22 +131,17 @@ const AuthPage = () => {
           <>
             <p>
               Don't have an account?{' '}
-              <button onClick={() => setMode('signup')}>Sign Up</button>
+              <button onClick={() => { setMode('signup'); setMessage({type:'', text:''}); }}>Sign Up</button>
             </p>
             <p>
               Forgot password?{' '}
-              <button onClick={() => setMode('reset')}>Reset Password</button>
+              <button onClick={handlePasswordReset}>Reset Password</button>
             </p>
           </>
-        ) : mode === 'signup' ? (
-          <p>
-            Already have an account?{' '}
-            <button onClick={() => setMode('login')}>Login</button>
-          </p>
         ) : (
           <p>
-            Remember your password?{' '}
-            <button onClick={() => setMode('login')}>Login</button>
+            Already have an account?{' '}
+            <button onClick={() => { setMode('login'); setMessage({type:'', text:''}); }}>Login</button>
           </p>
         )}
       </div>

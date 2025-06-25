@@ -12,19 +12,17 @@ const ResetPasswordPage = () => {
   const [isTokenValid, setIsTokenValid] = useState(false);
   const navigate = useNavigate();
 
-  // This hook runs once when the component loads to verify the token
   useEffect(() => {
-    // Supabase handles the session from the URL hash automatically when detectSessionInUrl is true.
-    // We listen for the SIGNED_IN event which occurs after the token is verified.
+    // Supabase automatically detects the session from the URL hash.
+    // We listen for the PASSWORD_RECOVERY event to confirm success.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        console.log('Password recovery mode entered. User is authenticated.');
         setIsTokenValid(true);
         setLoading(false);
       }
     });
 
-    // A fallback timer in case the event doesn't fire
+    // A fallback timer in case the event doesn't fire (e.g., bad link)
     const timer = setTimeout(() => {
         if (loading) {
             setLoading(false);
@@ -52,16 +50,14 @@ const ResetPasswordPage = () => {
 
     try {
       // The user is already authenticated via the token at this point.
-      // We can now update their password.
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       
       setMessage({ 
         type: 'success', 
-        text: 'Password updated successfully! You can now log in.' 
+        text: 'Password updated successfully! Redirecting to login...' 
       });
 
-      // Optional: Automatically sign out and redirect to login after a delay
       setTimeout(async () => {
         await supabase.auth.signOut();
         navigate('/auth');
@@ -85,7 +81,6 @@ const ResetPasswordPage = () => {
             {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
             <div className="auth-switch">
                 <p>
-                    Please request a new password reset link.
                     <button onClick={() => navigate('/auth')}>Return to Login</button>
                 </p>
             </div>
@@ -98,9 +93,7 @@ const ResetPasswordPage = () => {
       <h2>Set a New Password</h2>
       
       {message.text && (
-        <div className={`auth-message ${message.type}`}>
-          {message.text}
-        </div>
+        <div className={`auth-message ${message.type}`}>{message.text}</div>
       )}
       
       <form onSubmit={handleSetNewPassword}>
