@@ -1,34 +1,72 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\ResetPasswordPage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import './AuthPage.css';
 
 const ResetPasswordPage = () => {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [isTokenValid, setIsTokenValid] = useState(false);
   const navigate = useNavigate();
 
-  const handlePasswordReset = async (e) => {
+  // This hook runs once when the component loads to verify the token
+  useEffect(() => {
+    // Supabase handles the session from the URL hash automatically when detectSessionInUrl is true.
+    // We listen for the SIGNED_IN event which occurs after the token is verified.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery mode entered. User is authenticated.');
+        setIsTokenValid(true);
+        setLoading(false);
+      }
+    });
+
+    // A fallback timer in case the event doesn't fire
+    const timer = setTimeout(() => {
+        if (loading) {
+            setLoading(false);
+            if (!isTokenValid) {
+                setMessage({ type: 'error', text: 'Invalid or expired password reset link.' });
+            }
+        }
+    }, 3000);
+
+    return () => {
+      subscription?.unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [loading, isTokenValid]);
+
+  const handleSetNewPassword = async (e) => {
     e.preventDefault();
-    if (!email) {
-      setMessage({ type: 'error', text: 'Please enter your email address' });
+    if (newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
       return;
     }
-    
+
     setLoading(true);
     setMessage({ type: '', text: '' });
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      // The user is already authenticated via the token at this point.
+      // We can now update their password.
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       
       setMessage({ 
         type: 'success', 
-        text: 'Password reset email sent! Check your inbox.' 
+        text: 'Password updated successfully! You can now log in.' 
       });
+
+      // Optional: Automatically sign out and redirect to login after a delay
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+        navigate('/auth');
+      }, 3000);
+
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -36,9 +74,28 @@ const ResetPasswordPage = () => {
     }
   };
 
+  if (loading) {
+    return <div className="auth-page"><h2>Verifying link...</h2></div>;
+  }
+  
+  if (!isTokenValid) {
+    return (
+        <div className="auth-page">
+            <h2>Invalid Link</h2>
+            {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
+            <div className="auth-switch">
+                <p>
+                    Please request a new password reset link.
+                    <button onClick={() => navigate('/auth')}>Return to Login</button>
+                </p>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className="auth-page">
-      <h2>Reset Password</h2>
+      <h2>Set a New Password</h2>
       
       {message.text && (
         <div className={`auth-message ${message.type}`}>
@@ -46,14 +103,16 @@ const ResetPasswordPage = () => {
         </div>
       )}
       
-      <form onSubmit={handlePasswordReset}>
+      <form onSubmit={handleSetNewPassword}>
         <div className="form-group">
-          <label>Email</label>
+          <label>New Password</label>
           <input 
-            type="email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="password"
+            placeholder="Enter your new password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
             required
+            minLength="6"
           />
         </div>
         
@@ -62,16 +121,9 @@ const ResetPasswordPage = () => {
           className="auth-button"
           disabled={loading}
         >
-          {loading ? 'Sending...' : 'Send Reset Email'}
+          {loading ? 'Updating...' : 'Update Password'}
         </button>
       </form>
-      
-      <div className="auth-switch">
-        <p>
-          Remember your password?{' '}
-          <button onClick={() => navigate('/auth')}>Login</button>
-        </p>
-      </div>
     </div>
   );
 };
