@@ -1,8 +1,9 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\AnalyticsDashboard.jsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import Chart from 'react-apexcharts';
-import './AnalyticsDashboard.css'; // Add this line
+import './AnalyticsDashboard.css';
 
 const AnalyticsDashboard = () => {
   const [metrics, setMetrics] = useState({
@@ -21,121 +22,82 @@ const AnalyticsDashboard = () => {
   });
   
   const [socialData, setSocialData] = useState({
-    options: {
-      labels: ['Instagram', 'TikTok', 'Facebook', 'Twitter']
-    },
-    series: [0, 0, 0, 0]
+    options: { labels: [] },
+    series: []
   });
   
   const [leaderboard, setLeaderboard] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchMetrics = async () => {
+    const fetchData = async () => {
+      setIsLoading(true);
       try {
-        // Get scan metrics
-        const { count: totalScans } = await supabase
-          .from('scans')
-          .select('*', { count: 'exact' });
-        
-        const { count: validScans } = await supabase
-          .from('scans')
-          .select('*', { count: 'exact' })
-          .eq('validation_status', 'verified');
-        
-        // Social shares
-        const { count: socialShares } = await supabase
-          .from('social_shares')
-          .select('*', { count: 'exact' });
-        
-        // Referrals
-        const { count: referrals } = await supabase
-          .from('referrals')
-          .select('*', { count: 'exact' });
-        
-        // Social breakdown
-        const { data: socialBreakdown } = await supabase
-          .from('social_shares')
-          .select('platform, count(*)')
-          .group('platform');
-        
-        const socialSeries = [
-          socialBreakdown.find(s => s.platform === 'instagram')?.count || 0,
-          socialBreakdown.find(s => s.platform === 'tiktok')?.count || 0,
-          socialBreakdown.find(s => s.platform === 'facebook')?.count || 0,
-          socialBreakdown.find(s => s.platform === 'twitter')?.count || 0
-        ];
-        
-        // Scan timeline
-        const { data: scanTimeline } = await supabase
-          .rpc('get_daily_scans');
-        
+        const [
+          { count: totalScans },
+          { count: validScans },
+          { count: socialShares },
+          { count: referrals },
+          { data: scanTimeline },
+          { data: shareData },
+          { data: leaderboardData }
+        ] = await Promise.all([
+          supabase.from('scans').select('*', { count: 'exact' }),
+          supabase.from('scans').select('*', { count: 'exact' }).eq('validation_status', 'verified'),
+          supabase.from('social_shares').select('*', { count: 'exact' }),
+          supabase.from('referrals').select('*', { count: 'exact' }),
+          supabase.rpc('get_weekly_scan_data'),
+          supabase.rpc('get_platform_share_distribution'),
+          supabase.from('leaderboard').select('*').order('total_points', { ascending: false }).limit(10)
+        ]);
+
         setMetrics({
-          totalScans,
-          validScans,
-          socialShares,
-          referrals
+          totalScans: totalScans || 0,
+          validScans: validScans || 0,
+          socialShares: socialShares || 0,
+          referrals: referrals || 0
         });
-        
-        setSocialData({
-          ...socialData,
-          series: socialSeries
-        });
-        
+
         setScanData({
           options: {
-            ...scanData.options,
-            xaxis: { categories: scanTimeline.map(d => d.date) }
+            chart: { id: 'scans-chart', toolbar: { show: false } },
+            xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+            colors: ['#3b82f6'],
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth' }
           },
           series: [{ 
-            name: 'Daily Scans', 
-            data: scanTimeline.map(d => d.count) 
+            name: 'Scans', 
+            data: scanTimeline || Array(7).fill(0) 
           }]
         });
+
+        setSocialData({
+          options: {
+            labels: shareData?.map(item => item.platform) || [],
+            colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+          },
+          series: shareData?.map(item => item.count) || []
+        });
+
+        setLeaderboard(leaderboardData || []);
       } catch (error) {
-        console.error('Error fetching metrics:', error);
+        console.error('Error fetching data:', error);
+        setError('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    const fetchLeaderboard = async () => {
-      try {
-        const { data } = await supabase
-          .from('leaderboard')
-          .select('*')
-          .order('total_points', { ascending: false })
-          .limit(10);
-        
-        setLeaderboard(data || []);
-      } catch (error) {
-        console.error('Error fetching leaderboard:', error);
-      }
-    };
-
-    const setupRealtime = () => {
-      try {
-        const channel = supabase
-          .channel('scans')
-          .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-            fetchMetrics();
-            fetchLeaderboard();
-          })
-          .subscribe();
-        
-        return () => {
-          channel.unsubscribe();
-        };
-      } catch (error) {
-        console.error('Error setting up realtime:', error);
-      }
-    };
-
-    fetchMetrics();
-    fetchLeaderboard();
-    setupRealtime();
+    fetchData();
   }, []);
 
   return (
     <div className="dashboard">
       <h1>Campaign Analytics Dashboard</h1>
+      
+      {error && <div className="error-message">{error}</div>}
       
       <div className="metrics-grid">
         <div className="metric-card">
@@ -161,53 +123,71 @@ const AnalyticsDashboard = () => {
       <div className="chart-row">
         <div className="chart-container">
           <h3>Scan Activity</h3>
-          <Chart
-            options={scanData.options}
-            series={scanData.series}
-            type="area"
-            height={300}
-          />
+          {isLoading ? (
+            <div className="loader">Loading chart...</div>
+          ) : (
+            <Chart
+              options={scanData.options}
+              series={scanData.series}
+              type="bar"
+              height={300}
+            />
+          )}
         </div>
         
         <div className="chart-container">
           <h3>Social Platform Distribution</h3>
-          <Chart
-            options={socialData.options}
-            series={socialData.series}
-            type="donut"
-            height={300}
-          />
+          {isLoading ? (
+            <div className="loader">Loading chart...</div>
+          ) : (
+            <Chart
+              options={socialData.options}
+              series={socialData.series}
+              type="donut"
+              height={300}
+            />
+          )}
         </div>
       </div>
       
       <div className="leaderboard-section">
         <h3>Top Participants</h3>
-        <table className="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Participant</th>
-              <th>Points</th>
-              <th>Level</th>
-              <th>Badges</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaderboard.map((user, index) => (
-              <tr key={user.id}>
-                <td>{index + 1}</td>
-                <td>{user.email}</td>
-                <td>{user.total_points}</td>
-                <td>{user.level}</td>
-                <td>
-                  {user.badges && user.badges.map(badge => (
-                    <span key={badge} className="badge">{badge}</span>
-                  ))}
-                </td>
+        {isLoading ? (
+          <div className="loader">Loading leaderboard...</div>
+        ) : (
+          <table className="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Participant</th>
+                <th>Points</th>
+                <th>Level</th>
+                <th>Badges</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {leaderboard.length > 0 ? (
+                leaderboard.map((user, index) => (
+                  <tr key={user.id} className={index === 0 ? 'top-player' : ''}>
+                    <td>{index + 1}</td>
+                    <td>{user.email}</td>
+                    <td>{user.total_points}</td>
+                    <td>{user.level}</td>
+                    <td>
+                      {user.badges?.map((badge, i) => (
+                        <span key={i} className="badge">{badge}</span>
+                      ))}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="no-data">No participants yet</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

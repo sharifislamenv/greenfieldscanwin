@@ -1,3 +1,5 @@
+
+
 /* General Dashboard Styling */
 .dashboard {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -67,6 +69,7 @@
   padding: 1.5rem;
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  min-height: 350px;
 }
 
 .chart-container h3 {
@@ -131,6 +134,38 @@
   font-weight: 500;
   margin-right: 0.4rem;
   margin-top: 0.2rem;
+}
+
+/* Loading and Error States */
+.loader {
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+.error-message {
+  color: #ef4444;
+  padding: 15px;
+  background: #fee2e2;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Top Player Highlight */
+.top-player {
+  background-color: #f0f9ff;
+}
+
+.top-player td:first-child::before {
+  content: "👑";
+  margin-right: 8px;
 }
 
 /* Responsive Design */

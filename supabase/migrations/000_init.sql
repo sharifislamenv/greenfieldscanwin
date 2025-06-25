@@ -462,3 +462,56 @@ ON public.referrals
 FOR SELECT
 USING (true);
 
+-- 1. Create required functions if they don't exist
+CREATE OR REPLACE FUNCTION get_weekly_scan_data()
+RETURNS integer[] AS $$
+DECLARE
+  result integer[];
+BEGIN
+  SELECT ARRAY[
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 6),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 5),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 4),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 3),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 2),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE - 1),
+    COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)
+  ] INTO result FROM scans;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_platform_share_distribution()
+RETURNS TABLE(platform text, count bigint) AS $$
+BEGIN
+  RETURN QUERY 
+  SELECT platform, COUNT(*) as count
+  FROM social_shares
+  GROUP BY platform;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Apply RLS policies to underlying tables
+CREATE POLICY "Allow public read access to users" 
+ON public.users 
+FOR SELECT USING (true);
+
+CREATE POLICY "Allow public read access to scans" 
+ON public.scans 
+FOR SELECT USING (true);
+
+CREATE POLICY "Allow public read access to social_shares" 
+ON public.social_shares 
+FOR SELECT USING (true);
+
+CREATE POLICY "Allow public read access to referrals" 
+ON public.referrals 
+FOR SELECT USING (true);
+
+-- 3. Ensure leaderboard view is properly indexed
+CREATE UNIQUE INDEX IF NOT EXISTS leaderboard_unique_user_id_idx 
+ON public.leaderboard(id);
+
+-- 4. Refresh materialized view to ensure current data
+REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard;
+
