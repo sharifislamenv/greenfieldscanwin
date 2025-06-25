@@ -434,6 +434,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Creates a policy to allow anyone to read the public users data.
+-- This is necessary for the leaderboard to display emails and points.
+CREATE POLICY "Allow public read-only access to users for leaderboard"
+ON public.users
+FOR SELECT
+USING (true);
 
+-- Creates a policy to allow anyone to read the public scans data.
+-- This is needed for counting points for the leaderboard.
+CREATE POLICY "Allow public read-only access to scans"
+ON public.scans
+FOR SELECT
+USING (true);
 
+-- Creates a policy to allow anyone to read the public social shares data.
+-- This is needed for counting points for the leaderboard.
+CREATE POLICY "Allow public read-only access to social shares"
+ON public.social_shares
+FOR SELECT
+USING (true);
+
+-- Creates a policy to allow anyone to read the public referrals data.
+-- This is needed for counting points for the leaderboard.
+CREATE POLICY "Allow public read-only access to referrals"
+ON public.referrals
+FOR SELECT
+USING (true);
 
