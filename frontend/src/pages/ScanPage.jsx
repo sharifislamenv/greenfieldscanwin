@@ -23,7 +23,7 @@ const ScanPage = () => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const location = useNavigate();
+  const location = useLocation();
   const navigate = useNavigate();
 
   // Video Experience Component
@@ -102,23 +102,46 @@ const ScanPage = () => {
     return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * R;
   };
 
-  // QR Code Verification
+  // QR Code Verification - Fixed Version
   useEffect(() => {
     const verifyQRData = async () => {
       try {
-        const params = new URLSearchParams(location.search);
-        const data = params.get('d');
-        if (!data) throw new Error('No QR data found in URL');
+        // Get the raw query string
+        const queryString = window.location.search;
+        if (!queryString) {
+          throw new Error('No query parameters found');
+        }
+        
+        // Parse the query parameters
+        const params = new URLSearchParams(queryString);
+        const encodedData = params.get('d');
+        
+        if (!encodedData) {
+          throw new Error('No QR data parameter found');
+        }
 
-        const parts = data.split('|');
-        if (parts.length !== 7) throw new Error('Invalid QR data format');
+        // Decode the URI component to handle special characters
+        const decodedData = decodeURIComponent(encodedData);
+        
+        const parts = decodedData.split('|');
+        
+        if (parts.length !== 7) {
+          throw new Error(`Invalid QR data format. Expected 7 parts, got ${parts.length}`);
+        }
 
         const [storeId, bannerId, itemId, lat, lng, qrId, receivedSignature] = parts;
         const secretKey = process.env.REACT_APP_HMAC_SECRET;
-        if (!secretKey) throw new Error('Security configuration error');
+        
+        if (!secretKey) {
+          throw new Error('Security configuration error - HMAC secret not set');
+        }
 
-        const computedSignature = createHmacSignature(secretKey, `${storeId}|${bannerId}|${itemId}|${lat}|${lng}|${qrId}`);
-        if (receivedSignature !== computedSignature) throw new Error('Invalid QR signature');
+        const dataToVerify = `${storeId}|${bannerId}|${itemId}|${lat}|${lng}|${qrId}`;
+        const computedSignature = createHmacSignature(secretKey, dataToVerify);
+
+        if (receivedSignature !== computedSignature) {
+          throw new Error('Invalid QR signature - possible tampering detected');
+        }
 
         setQrData({
           storeId: parseInt(storeId),
@@ -130,6 +153,7 @@ const ScanPage = () => {
         });
         setStep('location-verification');
       } catch (err) {
+        console.error('QR verification error:', err);
         setError(err.message || 'QR verification failed');
         setStep('error');
       }
@@ -154,10 +178,14 @@ const ScanPage = () => {
 
         const { latitude: userLat, longitude: userLng } = position.coords;
         const distance = calculateDistance(qrData.lat, qrData.lng, userLat, userLng);
-        if (distance > 100) throw new Error(`You're ${Math.round(distance)}m away - must be within 100m of store`);
-        
+
+        if (distance > 100) {
+          throw new Error(`You're ${Math.round(distance)}m away - must be within 100m of store`);
+        }
+
         setStep('receipt-upload');
       } catch (err) {
+        console.error('Location error:', err);
         setError(err.message || 'Location verification failed');
         setStep('error');
       }
@@ -179,25 +207,29 @@ const ScanPage = () => {
     setStep('processing-receipt');
   
     try {
-      if (!file?.type.match('image.*')) throw new Error('Please upload a valid image file (JPEG/PNG)');
-      
+      if (!file || !file.type.match('image.*')) {
+        throw new Error('Please upload a valid image file (JPEG/PNG)');
+      }
+  
       const text = await processReceiptImage(file);
+      
       const receiptData = {
         date: extractDate(text),
         time: extractTime(text),
         items: extractItems(text),
         total: extractTotal(text)
       };
-
+  
       const { data: validation, error: rpcError } = await supabase.rpc('validate_receipt', {
         p_qr_id: qrData.qrId,
         p_receipt_data: receiptData
       });
-
-      if (rpcError || !validation?.is_valid) {
-        throw new Error(rpcError?.message || validation?.message || 'Receipt validation failed');
+  
+      if (rpcError) throw rpcError;
+      if (!validation?.is_valid) {
+        throw new Error(validation?.message || 'Receipt validation failed');
       }
-
+  
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setStep('authentication-required');
@@ -207,7 +239,9 @@ const ScanPage = () => {
       setUserData(user);
       await awardReward(user.id, 1);
       setStep('level-1-reward');
+      
     } catch (err) {
+      console.error('Receipt processing failed:', err);
       setError(err.message || 'Receipt processing error');
       setStep('error');
     } finally {
@@ -231,28 +265,44 @@ const ScanPage = () => {
   };
 
   // Receipt Parsing Functions
-  const extractDate = (text) => text.match(/\d{2}[\/\-]\d{2}[\/\-]\d{4}/)?.[0] || new Date().toISOString().split('T')[0];
-  const extractTime = (text) => text.match(/\d{1,2}:\d{2}(:\d{2})?/)?.[0] || new Date().toISOString().split('T')[1].split('.')[0];
-  const extractItems = (text) => text.split('\n')
-    .filter(line => line.match(/\w+\s+\d+\.\d{2}/))
-    .map(line => {
-      const [name, price] = line.split(/\s{2,}/);
-      return { name, price: parseFloat(price) };
-    }).slice(0, 5);
-  const extractTotal = (text) => parseFloat(text.match(/total\s*[\$\£\€]?(\d+\.\d{2})/i)?.[1]) || 0;
+  const extractDate = (text) => {
+    const dateMatch = text.match(/\d{2}[\/\-]\d{2}[\/\-]\d{4}/);
+    return dateMatch ? dateMatch[0] : new Date().toISOString().split('T')[0];
+  };
+
+  const extractTime = (text) => {
+    const timeMatch = text.match(/\d{1,2}:\d{2}(:\d{2})?/);
+    return timeMatch ? timeMatch[0] : new Date().toISOString().split('T')[1].split('.')[0];
+  };
+
+  const extractItems = (text) => {
+    const itemLines = text.split('\n')
+      .filter(line => line.match(/\w+\s+\d+\.\d{2}/))
+      .map(line => {
+        const [name, price] = line.split(/\s{2,}/);
+        return { name, price: parseFloat(price) };
+      });
+    return itemLines.slice(0, 5);
+  };
+
+  const extractTotal = (text) => {
+    const totalMatch = text.match(/total\s*[\$\£\€]?(\d+\.\d{2})/i);
+    return totalMatch ? parseFloat(totalMatch[1]) : 0;
+  };
 
   // UI Rendering
   const renderStep = () => {
+    if (step === 'error') {
+      return (
+        <div className="error-message">
+          <h2>An Error Occurred</h2>
+          <p>{error || 'Please try again later'}</p>
+          <button onClick={() => navigate('/')}>Return to Home</button>
+        </div>
+      );
+    }
+
     switch (step) {
-      case 'error':
-        return (
-          <div className="error-message">
-            <h2>An Error Occurred</h2>
-            <p>{error || 'Please try again later'}</p>
-            <button onClick={() => navigate('/')}>Return to Home</button>
-          </div>
-        );
-      
       case 'verifying':
         return <div className="loader">Verifying QR code...</div>;
       
@@ -362,7 +412,11 @@ const ScanPage = () => {
     }
   };
 
-  return <div className="scan-container">{renderStep()}</div>;
+  return (
+    <div className="scan-container">
+      {renderStep()}
+    </div>
+  );
 };
 
 export default ScanPage;
