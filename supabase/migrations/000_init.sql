@@ -515,3 +515,16 @@ ON public.leaderboard(id);
 -- 4. Refresh materialized view to ensure current data
 REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard;
 
+-- Verify RLS Policies Are Correct/policies with permissive = true and roles = public
+SELECT * FROM pg_policies 
+WHERE tablename IN ('users', 'scans', 'social_shares', 'referrals');
+
+-- Check Materialized View Data
+-- Check if leaderboard has data
+SELECT COUNT(*) FROM leaderboard;
+
+-- Check underlying tables
+SELECT COUNT(*) FROM scans;
+SELECT COUNT(*) FROM social_shares;
+SELECT COUNT(*) FROM referrals;
+

@@ -9,6 +9,7 @@ import SocialChallenge from '../components/SocialChallenge';
 import ReferralProgram from '../components/ReferralProgram';
 import VideoExperience from '../components/VideoExperience';
 import CryptoJS from 'crypto-js';
+import './ScanPage.css';
 
 const REWARDS = {
   1: { type: 'coupon', value: '10OFF', points: 50, description: '10% discount on next purchase' },
