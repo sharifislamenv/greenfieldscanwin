@@ -1,5 +1,7 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.css */
 
+/* D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.css */
+
 .scan-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -12,10 +14,10 @@
   justify-content: center;
 }
 
-/* Common styles for all steps */
+/* Common styles for headers and paragraphs within sections */
 .scan-container h2 {
   color: #2c3e50;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   font-size: 2rem;
   text-align: center;
 }
@@ -23,9 +25,25 @@
 .scan-container p {
   color: #4b5563;
   font-size: 1.1rem;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
   text-align: center;
   max-width: 600px;
+}
+
+/* Shared card style for all steps */
+.error-message,
+.location-check,
+.receipt-upload,
+.auth-required,
+.reward-unlock,
+.video-experience {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
 }
 
 /* Loader styles */
@@ -36,9 +54,9 @@
   justify-content: center;
   gap: 20px;
   padding: 40px;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #4b5563;
 }
 
 .loader::after {
@@ -52,26 +70,23 @@
   animation: spin 1s ease-in-out infinite;
 }
 
-/* Error message styles */
-.error-message {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
+/* Error-specific styles */
 .error-message h2 {
   color: #c0392b;
 }
 
 .error-message p {
   color: #7f8c8d;
-  margin-bottom: 30px;
 }
 
-.error-message button {
+/* Shared button style for actions */
+.error-message button,
+.auth-required button,
+.continue-button {
   background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
   color: white;
   border: none;
@@ -83,37 +98,24 @@
   transition: all 0.3s ease;
 }
 
-.error-message button:hover {
+.error-message button:hover,
+.auth-required button:hover,
+.continue-button:hover {
   transform: translateY(-3px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Location verification styles */
-.location-check {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
+.continue-button {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
-/* Receipt upload styles */
-.receipt-upload {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
-}
-
+/* Receipt upload input style */
 .receipt-upload input[type="file"] {
   width: 100%;
   padding: 15px;
   border: 2px dashed #e5e7eb;
   border-radius: 10px;
-  margin-bottom: 20px;
+  margin: 10px 0;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -123,219 +125,107 @@
   background: #f0f9ff;
 }
 
-/* Authentication required styles */
-.auth-required {
-  background: white;
-  padding: 40px;
+/* Reward Unlock specific styles */
+.reward-badge {
+  background: linear-gradient(135deg, #facc15 0%, #fb923c 100%);
+  color: #422006;
+  display: inline-block;
+  padding: 5px 15px;
   border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
-}
-
-.auth-required button {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white;
-  border: none;
-  padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 1.1rem;
   font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.auth-required button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-/* Reward unlock styles */
-.reward-unlock {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
-}
-
-.reward-level {
-  font-size: 1.5rem;
-  color: #2563eb;
   margin-bottom: 15px;
 }
 
-.reward-value {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: #10b981;
-  margin-bottom: 15px;
+.reward-icon {
+  font-size: 4rem;
+  margin: 20px 0;
 }
 
-.reward-description {
-  font-size: 1.2rem;
-  color: #4b5563;
-  margin-bottom: 30px;
-}
-
-.continue-button {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  border: none;
-  padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.continue-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-/* Brand Story Experience Section */
-.brand-story {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 20px;
-  padding: 40px;
-  margin: 30px 0;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+.reward-card {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
   border: 1px solid #e2e8f0;
+  margin: 20px 0;
 }
 
-.brand-story::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 5px;
-  background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+.reward-card h3 {
+    margin: 0 0 10px 0;
+}
+.reward-card p {
+    margin: 0;
+    font-size: 1rem;
 }
 
-.brand-story-header {
-  margin-bottom: 30px;
-}
-
-.brand-story-header h2 {
-  font-size: 2rem;
-  color: #1e293b;
-  margin-bottom: 15px;
-}
-
-.brand-story-header p {
-  color: #64748b;
-  font-size: 1.1rem;
-  max-width: 700px;
-  margin: 0 auto;
-}
-
-.video-container {
+/* Video Experience styles */
+.video-wrapper {
   position: relative;
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  margin: 25px 0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-.video-placeholder {
+.video-wrapper video {
   width: 100%;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
-  background: linear-gradient(45deg, #1e293b, #334155);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  background: #000;
 }
 
-.video-placeholder::after {
-  content: '';
-  position: absolute;
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+.video-controls {
   display: flex;
-  align-items: center;
   justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.video-button {
+  background: #3b82f6;
   color: white;
-  font-size: 2rem;
-  backdrop-filter: blur(5px);
+  border: none;
+  padding: 12px 30px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.video-placeholder:hover::after {
-  transform: scale(1.1);
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.brand-story-content {
-  max-width: 700px;
-  margin: 30px auto 0;
-  text-align: left;
-}
-
-.brand-story-content h3 {
-  color: #1e293b;
-  margin-bottom: 15px;
-  font-size: 1.5rem;
-}
-
-.brand-story-content p {
-  color: #475569;
-  line-height: 1.6;
-  margin-bottom: 20px;
-}
-
-.brand-highlights {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin: 30px 0;
-}
-
-.highlight-card {
-  background: white;
-  border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  transition: transform 0.3s ease;
-}
-
-.highlight-card:hover {
-  transform: translateY(-5px);
-}
-
-.highlight-icon {
-  font-size: 2.5rem;
-  color: #2563eb;
-  margin-bottom: 15px;
-}
-
-.highlight-title {
-  font-weight: bold;
-  color: #1e293b;
-  margin-bottom: 10px;
-}
-
-.highlight-description {
+.video-button.secondary {
+  background: #f1f5f9;
   color: #64748b;
-  font-size: 0.95rem;
 }
 
-/* Animation for loading spinner */
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.video-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.video-button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.video-progress {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.video-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+  width: 0%;
+  transition: width 0.3s ease;
 }
 
 /* Responsive adjustments */
@@ -356,109 +246,9 @@
   .location-check,
   .receipt-upload,
   .auth-required,
-  .reward-unlock {
-    padding: 25px;
-    width: 100%;
-  }
-
-  .brand-story {
-    padding: 25px;
-  }
-  
-  .brand-story-header h2 {
-    font-size: 1.5rem;
-  }
-  
-  .brand-story-header p {
-    font-size: 1rem;
-  }
-  
-  .brand-highlights {
-    grid-template-columns: 1fr;
-  }
-  
-  .continue-button {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* Video Experience Section */
+  .reward-unlock,
   .video-experience {
-  background: white;
-  border-radius: 20px;
-  padding: 40px;
-  margin: 30px 0;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 800px;
+    padding: 25px;
+    width: 100%;
   }
-
-  .video-wrapper {
-  position: relative;
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 25px;
-  }
-
-  .video-wrapper video {
-  width: 100%;
-  display: block;
-  }
-
-  .video-controls {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 20px;
-  }
-
-  .video-button {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white;
-  border: none;
-  padding: 12px 30px;
-  border-radius: 50px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  }
-
-  .video-button.secondary {
-  background: #f1f5f9;
-  color: #64748b;
-  }
-
-  .video-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  }
-
-  .video-button:disabled {
-  background: #e2e8f0;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-  }
-
-  .video-progress {
-  width: 100%;
-  height: 6px;
-  background: #e2e8f0;
-  border-radius: 3px;
-  margin-top: 20px;
-  overflow: hidden;
-  }
-
-  .video-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
-  width: 0%;
-  transition: width 0.3s ease;
-  }
-
 }
