@@ -2,140 +2,229 @@
 
 /* ScanPage.css */
 
-.scan-container {
+.scan-page {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
   color: #333;
   min-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Common styles for all steps */
-.scan-container h2 {
-  color: #2c3e50;
-  margin-bottom: 20px;
-  font-size: 2rem;
-  text-align: center;
-}
-
-.scan-container p {
-  color: #4b5563;
-  font-size: 1.1rem;
-  margin-bottom: 30px;
-  text-align: center;
-  max-width: 600px;
-}
-
-/* Loader styles */
-.loader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  padding: 40px;
+.scan-content {
   background: white;
   border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  padding: 40px;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
-.loader::after {
-  content: "";
-  display: inline-block;
+/* Header styles */
+.scan-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.scan-header h2 {
+  font-size: 2rem;
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.scan-header p {
+  color: #64748b;
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Step indicator */
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.step {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(59, 130, 246, 0.2);
   border-radius: 50%;
-  border-top-color: #3b82f6;
-  animation: spin 1s ease-in-out infinite;
-}
-
-/* Error message styles */
-.error-message {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
-}
-
-.error-message h2 {
-  color: #c0392b;
-}
-
-.error-message p {
-  color: #7f8c8d;
-  margin-bottom: 30px;
-}
-
-.error-message button {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white;
-  border: none;
-  padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  background: #e2e8f0;
+  color: #64748b;
+  position: relative;
 }
 
-.error-message button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+.step.active {
+  background: #2563eb;
+  color: white;
+}
+
+.step.completed {
+  background: #10b981;
+  color: white;
+}
+
+.step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 2px;
+  background: #e2e8f0;
+  left: 100%;
+}
+
+.step.completed:not(:last-child)::after {
+  background: #10b981;
+}
+
+/* Common card styles */
+.scan-card {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  margin-bottom: 30px;
+  border: 1px solid #f1f5f9;
+}
+
+/* QR Verification styles */
+.qr-verification {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-animation {
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(45deg, #f3f4f6, #e5e7eb);
+  border-radius: 12px;
+  margin: 20px 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-animation::before {
+  content: "";
+  position: absolute;
+  width: 90%;
+  height: 90%;
+  background: 
+    linear-gradient(90deg, transparent 50%, rgba(255,255,255,0.3) 50%),
+    linear-gradient(transparent 50%, rgba(255,255,255,0.3) 50%);
+  background-size: 20px 20px;
+}
+
+.qr-animation::after {
+  content: "QR CODE";
+  position: absolute;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #6b7280;
 }
 
 /* Location verification styles */
-.location-check {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+.location-verification {
   text-align: center;
-  max-width: 600px;
+}
+
+.location-icon {
+  font-size: 3rem;
+  color: #3b82f6;
+  margin-bottom: 20px;
 }
 
 /* Receipt upload styles */
 .receipt-upload {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   text-align: center;
-  max-width: 600px;
 }
 
-.receipt-upload input[type="file"] {
-  width: 100%;
-  padding: 15px;
-  border: 2px dashed #e5e7eb;
-  border-radius: 10px;
-  margin-bottom: 20px;
+.upload-area {
+  border: 2px dashed #e2e8f0;
+  border-radius: 12px;
+  padding: 30px;
+  margin: 20px 0;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.receipt-upload input[type="file"]:hover {
-  border-color: #3b82f6;
-  background: #f0f9ff;
+.upload-area:hover {
+  border-color: #2563eb;
+  background: #f8fafc;
 }
 
-/* Authentication required styles */
-.auth-required {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+.upload-icon {
+  font-size: 2.5rem;
+  color: #2563eb;
+  margin-bottom: 15px;
+}
+
+/* Processing styles */
+.processing-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(59, 130, 246, 0.2);
+  border-radius: 50%;
+  border-top-color: #3b82f6;
+  animation: spin 1s linear infinite;
+  margin: 20px 0;
+}
+
+/* Reward styles */
+.reward-card {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 16px;
+  padding: 30px;
   text-align: center;
-  max-width: 600px;
+  margin: 20px 0;
 }
 
-.auth-required button {
+.reward-badge {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.reward-title {
+  font-size: 1.5rem;
+  color: #2563eb;
+  margin-bottom: 10px;
+}
+
+.reward-description {
+  color: #475569;
+  margin-bottom: 20px;
+}
+
+.reward-points {
+  display: inline-block;
+  background: #10b981;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+/* Button styles */
+.scan-button {
   background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
   color: white;
   border: none;
@@ -145,85 +234,68 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.auth-required button:hover {
+.scan-button:hover {
   transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Reward unlock styles (matches HomePage stats cards) */
-.reward-unlock {
-  background: white;
-  padding: 40px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  max-width: 600px;
+.scan-button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-.reward-level {
-  font-size: 1.5rem;
-  color: #2563eb;
-  margin-bottom: 15px;
+/* Error state */
+.error-state {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #e53e3e;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px 0;
 }
 
-.reward-value {
-  font-size: 2.5rem;
-  font-weight: bold;
-  color: #10b981;
-  margin-bottom: 15px;
-}
-
-.reward-description {
-  font-size: 1.2rem;
-  color: #4b5563;
-  margin-bottom: 30px;
-}
-
-.continue-button {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-  border: none;
-  padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.continue-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-/* Animation for loading spinner */
+/* Animation */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .scan-container {
-    padding: 15px;
+  .scan-content {
+    padding: 20px;
   }
   
-  .scan-container h2 {
+  .step-indicator {
+    gap: 5px;
+  }
+  
+  .step {
+    width: 30px;
+    height: 30px;
+    font-size: 0.9rem;
+  }
+  
+  .step:not(:last-child)::after {
+    width: 15px;
+  }
+  
+  .scan-header h2 {
     font-size: 1.5rem;
   }
   
-  .scan-container p {
+  .scan-header p {
     font-size: 1rem;
   }
   
-  .error-message,
-  .location-check,
-  .receipt-upload,
-  .auth-required,
-  .reward-unlock {
-    padding: 25px;
-    width: 100%;
+  .scan-card {
+    padding: 20px;
   }
 }
-
