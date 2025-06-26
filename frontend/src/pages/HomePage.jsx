@@ -175,7 +175,9 @@ const HomePage = () => {
 
   // Handle scanning
   const handleStartScanning = () => {
-    navigate('/scan');
+    //navigate('/scan');
+    // --- CHANGE: Update the navigation path ---
+    navigate('/start-scan');
   };
 
   const simulateScan = () => {
