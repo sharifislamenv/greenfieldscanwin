@@ -1,5 +1,6 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.css */
 
+/* ScanPage.css */
 
 .scan-container {
   max-width: 1200px;
@@ -151,7 +152,7 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Reward unlock styles (matches HomePage stats cards) */
+/* Reward unlock styles */
 .reward-unlock {
   background: white;
   padding: 40px;
@@ -197,35 +198,7 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Animation for loading spinner */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .scan-container {
-    padding: 15px;
-  }
-  
-  .scan-container h2 {
-    font-size: 1.5rem;
-  }
-  
-  .scan-container p {
-    font-size: 1rem;
-  }
-  
-  .error-message,
-  .location-check,
-  .receipt-upload,
-  .auth-required,
-  .reward-unlock {
-    padding: 25px;
-    width: 100%;
-  }
-
-  /* Brand Story Experience Section */
+/* Brand Story Experience Section */
 .brand-story {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border-radius: 20px;
@@ -362,29 +335,34 @@
   font-size: 0.95rem;
 }
 
-.continue-button {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white;
-  border: none;
-  padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 30px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.continue-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+/* Animation for loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .scan-container {
+    padding: 15px;
+  }
+  
+  .scan-container h2 {
+    font-size: 1.5rem;
+  }
+  
+  .scan-container p {
+    font-size: 1rem;
+  }
+  
+  .error-message,
+  .location-check,
+  .receipt-upload,
+  .auth-required,
+  .reward-unlock {
+    padding: 25px;
+    width: 100%;
+  }
+
   .brand-story {
     padding: 25px;
   }
@@ -406,6 +384,3 @@
     justify-content: center;
   }
 }
-
-}
-
