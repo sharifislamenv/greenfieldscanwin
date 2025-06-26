@@ -1,13 +1,12 @@
 // D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Tesseract from 'tesseract.js';
 import { supabase } from '../supabaseClient';
 import RewardUnlock from '../components/RewardUnlock';
 import SocialChallenge from '../components/SocialChallenge';
 import ReferralProgram from '../components/ReferralProgram';
-import VideoExperience from '../components/VideoExperience';
 import CryptoJS from 'crypto-js';
 import './ScanPage.css';
 
@@ -24,86 +23,119 @@ const ScanPage = () => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const location = useLocation();
+  const location = useNavigate();
   const navigate = useNavigate();
+
+  // Video Experience Component
+  const VideoExperience = ({ onComplete }) => {
+    const videoRef = useRef(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const handlePlayPause = () => {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    };
+
+    const handleTimeUpdate = () => {
+      const duration = videoRef.current.duration || 1;
+      setProgress((videoRef.current.currentTime / duration) * 100);
+    };
+
+    const handleSkip = () => {
+      videoRef.current.currentTime = videoRef.current.duration - 0.5;
+      onComplete();
+    };
+
+    return (
+      <div className="video-experience">
+        <h2>Discover Our Brand Story</h2>
+        <p>Watch this short video to learn more about our products</p>
+        
+        <div className="video-wrapper">
+          <video
+            ref={videoRef}
+            src="/videos/brand-story.mp4"
+            poster="/images/video-poster.jpg"
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={onComplete}
+          />
+        </div>
+        
+        <div className="video-progress">
+          <div className="video-progress-bar" style={{ width: `${progress}%` }} />
+        </div>
+        
+        <div className="video-controls">
+          <button className="video-button" onClick={handlePlayPause}>
+            {isPlaying ? '⏸ Pause' : '▶ Play'}
+          </button>
+          <button className="video-button secondary" onClick={handleSkip}>
+            ⏩ Skip
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // HMAC-SHA256 signature creation
   const createHmacSignature = (secretKey, data) => {
-    const signature = CryptoJS.HmacSHA256(data, secretKey);
-    return signature.toString(CryptoJS.enc.Hex);
+    return CryptoJS.HmacSHA256(data, secretKey).toString(CryptoJS.enc.Hex);
   };
 
-  // Calculate distance using Haversine formula
+  // Haversine distance calculation
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Earth radius in meters
+    const R = 6371e3;
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
     const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-    const a = 
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
-    return R * c; // Distance in meters
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * R;
   };
 
   // QR Code Verification
   useEffect(() => {
     const verifyQRData = async () => {
-      const params = new URLSearchParams(location.search);
-      const data = params.get('d');
-      
-      if (!data) {
-        setError('No QR data found in URL');
+      try {
+        const params = new URLSearchParams(location.search);
+        const data = params.get('d');
+        if (!data) throw new Error('No QR data found in URL');
+
+        const parts = data.split('|');
+        if (parts.length !== 7) throw new Error('Invalid QR data format');
+
+        const [storeId, bannerId, itemId, lat, lng, qrId, receivedSignature] = parts;
+        const secretKey = process.env.REACT_APP_HMAC_SECRET;
+        if (!secretKey) throw new Error('Security configuration error');
+
+        const computedSignature = createHmacSignature(secretKey, `${storeId}|${bannerId}|${itemId}|${lat}|${lng}|${qrId}`);
+        if (receivedSignature !== computedSignature) throw new Error('Invalid QR signature');
+
+        setQrData({
+          storeId: parseInt(storeId),
+          bannerId: parseInt(bannerId),
+          itemId: parseInt(itemId),
+          qrId,
+          lat: parseFloat(lat),
+          lng: parseFloat(lng)
+        });
+        setStep('location-verification');
+      } catch (err) {
+        setError(err.message || 'QR verification failed');
         setStep('error');
-        return;
       }
-
-      const parts = data.split('|');
-      
-      if (parts.length !== 7) {
-        setError('Invalid QR data format');
-        setStep('error');
-        return;
-      }
-
-      const [storeId, bannerId, itemId, lat, lng, qrId, receivedSignature] = parts;
-      const secretKey = process.env.REACT_APP_HMAC_SECRET;
-
-      if (!secretKey) {
-        setError('Security configuration error');
-        setStep('error');
-        return;
-      }
-
-      const dataToVerify = `${storeId}|${bannerId}|${itemId}|${lat}|${lng}|${qrId}`;
-      const computedSignature = createHmacSignature(secretKey, dataToVerify);
-
-      if (receivedSignature !== computedSignature) {
-        setError('Invalid QR signature - possible tampering detected');
-        setStep('error');
-        return;
-      }
-
-      setQrData({
-        storeId: parseInt(storeId),
-        bannerId: parseInt(bannerId),
-        itemId: parseInt(itemId),
-        qrId,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng)
-      });
-      setStep('location-verification');
     };
 
-    verifyQRData().catch(err => {
-      console.error('QR verification error:', err);
-      setError(err.message || 'QR verification failed');
-      setStep('error');
-    });
+    verifyQRData();
   }, [location]);
 
   // Location Verification
@@ -121,23 +153,12 @@ const ScanPage = () => {
         });
 
         const { latitude: userLat, longitude: userLng } = position.coords;
-        const distance = calculateDistance(
-          qrData.lat, 
-          qrData.lng, 
-          userLat, 
-          userLng
-        );
-
-        if (distance > 100) {
-          setError(`You're ${Math.round(distance)}m away - must be within 100m of store`);
-          setStep('error');
-          return;
-        }
-
+        const distance = calculateDistance(qrData.lat, qrData.lng, userLat, userLng);
+        if (distance > 100) throw new Error(`You're ${Math.round(distance)}m away - must be within 100m of store`);
+        
         setStep('receipt-upload');
       } catch (err) {
-        console.error('Location error:', err);
-        setError(err.message || 'Location access denied or timed out');
+        setError(err.message || 'Location verification failed');
         setStep('error');
       }
     };
@@ -147,9 +168,7 @@ const ScanPage = () => {
 
   // Process receipt image with OCR
   const processReceiptImage = async (file) => {
-    const { data } = await Tesseract.recognize(file, 'eng', {
-      logger: m => console.log('OCR Progress:', m)
-    });
+    const { data } = await Tesseract.recognize(file, 'eng');
     return data.text;
   };
 
@@ -160,29 +179,25 @@ const ScanPage = () => {
     setStep('processing-receipt');
   
     try {
-      if (!file || !file.type.match('image.*')) {
-        throw new Error('Please upload a valid image file (JPEG/PNG)');
-      }
-  
-      const text = await processReceiptImage(file);
+      if (!file?.type.match('image.*')) throw new Error('Please upload a valid image file (JPEG/PNG)');
       
+      const text = await processReceiptImage(file);
       const receiptData = {
         date: extractDate(text),
         time: extractTime(text),
         items: extractItems(text),
         total: extractTotal(text)
       };
-  
+
       const { data: validation, error: rpcError } = await supabase.rpc('validate_receipt', {
         p_qr_id: qrData.qrId,
         p_receipt_data: receiptData
       });
-  
-      if (rpcError) throw rpcError;
-      if (!validation?.is_valid) {
-        throw new Error(validation?.message || 'Receipt validation failed');
+
+      if (rpcError || !validation?.is_valid) {
+        throw new Error(rpcError?.message || validation?.message || 'Receipt validation failed');
       }
-  
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setStep('authentication-required');
@@ -192,9 +207,7 @@ const ScanPage = () => {
       setUserData(user);
       await awardReward(user.id, 1);
       setStep('level-1-reward');
-      
     } catch (err) {
-      console.error('Receipt processing failed:', err);
       setError(err.message || 'Receipt processing error');
       setStep('error');
     } finally {
@@ -218,44 +231,28 @@ const ScanPage = () => {
   };
 
   // Receipt Parsing Functions
-  const extractDate = (text) => {
-    const dateMatch = text.match(/\d{2}[\/\-]\d{2}[\/\-]\d{4}/);
-    return dateMatch ? dateMatch[0] : new Date().toISOString().split('T')[0];
-  };
-
-  const extractTime = (text) => {
-    const timeMatch = text.match(/\d{1,2}:\d{2}(:\d{2})?/);
-    return timeMatch ? timeMatch[0] : new Date().toISOString().split('T')[1].split('.')[0];
-  };
-
-  const extractItems = (text) => {
-    const itemLines = text.split('\n')
-      .filter(line => line.match(/\w+\s+\d+\.\d{2}/))
-      .map(line => {
-        const [name, price] = line.split(/\s{2,}/);
-        return { name, price: parseFloat(price) };
-      });
-    return itemLines.slice(0, 5);
-  };
-
-  const extractTotal = (text) => {
-    const totalMatch = text.match(/total\s*[\$\£\€]?(\d+\.\d{2})/i);
-    return totalMatch ? parseFloat(totalMatch[1]) : 0;
-  };
+  const extractDate = (text) => text.match(/\d{2}[\/\-]\d{2}[\/\-]\d{4}/)?.[0] || new Date().toISOString().split('T')[0];
+  const extractTime = (text) => text.match(/\d{1,2}:\d{2}(:\d{2})?/)?.[0] || new Date().toISOString().split('T')[1].split('.')[0];
+  const extractItems = (text) => text.split('\n')
+    .filter(line => line.match(/\w+\s+\d+\.\d{2}/))
+    .map(line => {
+      const [name, price] = line.split(/\s{2,}/);
+      return { name, price: parseFloat(price) };
+    }).slice(0, 5);
+  const extractTotal = (text) => parseFloat(text.match(/total\s*[\$\£\€]?(\d+\.\d{2})/i)?.[1]) || 0;
 
   // UI Rendering
   const renderStep = () => {
-    if (step === 'error') {
-      return (
-        <div className="error-message">
-          <h2>An Error Occurred</h2>
-          <p>{error || 'Please try again later'}</p>
-          <button onClick={() => navigate('/')}>Return to Home</button>
-        </div>
-      );
-    }
-
     switch (step) {
+      case 'error':
+        return (
+          <div className="error-message">
+            <h2>An Error Occurred</h2>
+            <p>{error || 'Please try again later'}</p>
+            <button onClick={() => navigate('/')}>Return to Home</button>
+          </div>
+        );
+      
       case 'verifying':
         return <div className="loader">Verifying QR code...</div>;
       
@@ -365,11 +362,7 @@ const ScanPage = () => {
     }
   };
 
-  return (
-    <div className="scan-container">
-      {renderStep()}
-    </div>
-  );
+  return <div className="scan-container">{renderStep()}</div>;
 };
 
 export default ScanPage;
