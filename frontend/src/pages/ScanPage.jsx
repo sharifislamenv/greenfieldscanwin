@@ -322,6 +322,7 @@ const ScanPage = () => {
             <input 
               type="file" 
               accept="image/*" 
+              capture="environment" /* <-- Allow users to take a photo directly with their camera for a receipt upload */
               onChange={(e) => handleReceiptUpload(e.target.files[0])} 
               disabled={isProcessing} 
             />
