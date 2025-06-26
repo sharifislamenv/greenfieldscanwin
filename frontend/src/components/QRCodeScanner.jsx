@@ -1,8 +1,7 @@
-//D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.jsx
-
 import React, { useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
+import './QRCodeScanner.css'; // --- NEW: Import the CSS file ---
 
 const QRCodeScanner = () => {
   const scannerRef = useRef(null);
@@ -36,7 +35,6 @@ const QRCodeScanner = () => {
     // This function will be called on scan failure
     const onScanFailure = (error) => {
       // The library will continuously scan, so we can ignore individual failures.
-      // console.warn(`QR scan failure: ${error}`);
     };
 
     const scanner = new Html5QrcodeScanner(
@@ -52,7 +50,6 @@ const QRCodeScanner = () => {
 
     // Cleanup function to clear the scanner when the component is unmounted
     return () => {
-      // Ensure the scanner's clear method is available and the element exists
       if (scanner && scanner.getState() !== "NOT_STARTED") {
         scanner.clear().catch(error => {
           console.error("Failed to clear scanner on unmount.", error);
@@ -62,10 +59,11 @@ const QRCodeScanner = () => {
   }, [navigate]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
+    // --- NEW: Add the main className ---
+    <div className="scanner-page-container">
       <h2>Scan QR Code</h2>
-      <p>Point your camera at a Greenfield QR code.</p>
-      <div id="qr-code-reader" style={{ width: '100%', maxWidth: '500px', border: '1px solid #ccc', borderRadius: '8px' }}></div>
+      <p>Point your camera at a Greenfield QR code to begin.</p>
+      <div id="qr-code-reader"></div>
     </div>
   );
 };
