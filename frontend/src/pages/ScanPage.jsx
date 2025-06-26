@@ -179,8 +179,8 @@ const ScanPage = () => {
         const { latitude: userLat, longitude: userLng } = position.coords;
         const distance = calculateDistance(qrData.lat, qrData.lng, userLat, userLng);
 
-        if (distance > 100) {
-          throw new Error(`You're ${Math.round(distance)}m away - must be within 100m of store`);
+        if (distance > 3100) {
+          throw new Error(`You're ${Math.round(distance)}m away - must be within 3100m of store`);
         }
 
         setStep('receipt-upload');
