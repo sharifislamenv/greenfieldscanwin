@@ -1,5 +1,7 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
 
+//D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -29,6 +31,7 @@ const HomePage = () => {
   const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dataError, setDataError] = useState(null);
   
   const [analytics, setAnalytics] = useState({ 
     scans: 0, 
@@ -63,12 +66,20 @@ const HomePage = () => {
   // Check for existing session on mount
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setUser(session.user);
-        await fetchUserData(session.user.id);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (session) {
+          setUser(session.user);
+          await fetchUserData(session.user.id);
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        setDataError('Failed to check user session');
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     
     checkSession();
@@ -77,12 +88,14 @@ const HomePage = () => {
   // Fetch user data when authenticated
   const fetchUserData = async (userId) => {
     try {
-      const { data: stats } = await supabase
+      const { data: stats, error } = await supabase
         .from('users')
         .select('points, level, badges, scans_today')
         .eq('id', userId)
         .single();
       
+      if (error) throw error;
+
       if (stats) {
         setUserStats({
           points: stats.points || 0,
@@ -93,6 +106,7 @@ const HomePage = () => {
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+      setDataError('Failed to load user data');
     }
   };
 
@@ -100,44 +114,56 @@ const HomePage = () => {
   useEffect(() => {
     const fetchPublicData = async () => {
       try {
+        setIsLoading(true);
+        setDataError(null);
         const today = new Date().toISOString();
         
         // Active campaigns (current date between start and end dates)
-        const { data: campaigns } = await supabase
+        const { data: campaigns, error: campaignsError } = await supabase
           .from('campaigns')
           .select('*')
           .lte('start_date', today)
           .gte('end_date', today)
           .order('end_date', { ascending: true });
         
+        if (campaignsError) throw campaignsError;
         setActiveCampaigns(campaigns || []);
         
-        // Leaderboard (only show users with points)
-        const { data: leaderboardData } = await supabase
+        // Leaderboard - use the materialized view directly
+        const { data: leaderboardData, error: leaderboardError } = await supabase
           .from('leaderboard')
           .select('*')
-          .gt('total_points', 0)
           .order('total_points', { ascending: false })
           .limit(10);
         
+        if (leaderboardError) throw leaderboardError;
         setLeaderboard(leaderboardData || []);
         
-        // Analytics
-        const { count: scans } = await supabase
+        // Analytics - use count with error handling
+        const { count: scans, error: scansError } = await supabase
           .from('scans')
-          .select('*', { count: 'exact' });
+          .select('*', { count: 'exact', head: true });
         
-        const { count: shares } = await supabase
+        if (scansError) throw scansError;
+        
+        const { count: shares, error: sharesError } = await supabase
           .from('social_shares')
-          .select('*', { count: 'exact' });
+          .select('*', { count: 'exact', head: true });
         
-        const { count: redemptions } = await supabase
+        if (sharesError) throw sharesError;
+        
+        const { count: redemptions, error: redemptionsError } = await supabase
           .from('user_rewards')
-          .select('*', { count: 'exact' });
+          .select('*', { count: 'exact', head: true });
         
-        // Get chart data
-        const { data: scanData } = await supabase.rpc('get_weekly_scan_data');
-        const { data: shareData } = await supabase.rpc('get_weekly_share_data');
+        if (redemptionsError) throw redemptionsError;
+        
+        // Get chart data with error handling
+        const { data: scanData, error: scanDataError } = await supabase.rpc('get_weekly_scan_data');
+        if (scanDataError) throw scanDataError;
+        
+        const { data: shareData, error: shareDataError } = await supabase.rpc('get_weekly_share_data');
+        if (shareDataError) throw shareDataError;
         
         setAnalytics(prev => ({
           ...prev,
@@ -154,6 +180,25 @@ const HomePage = () => {
         }));
       } catch (error) {
         console.error('Error fetching public data:', error);
+        setDataError('Failed to load public data');
+        // Set default/empty values if there's an error
+        setActiveCampaigns([]);
+        setLeaderboard([]);
+        setAnalytics(prev => ({
+          ...prev,
+          scans: 0,
+          shares: 0,
+          redemptions: 0,
+          chartData: {
+            ...prev.chartData,
+            series: [
+              { name: 'Scans', data: [0,0,0,0,0,0,0] },
+              { name: 'Shares', data: [0,0,0,0,0,0,0] }
+            ]
+          }
+        }));
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -229,7 +274,7 @@ const HomePage = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Update user stats
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .update({ 
           points: userStats.points + 10,
@@ -238,6 +283,8 @@ const HomePage = () => {
         .eq('id', user.id)
         .select();
       
+      if (error) throw error;
+
       if (data) {
         setUserStats(prev => ({
           ...prev,
@@ -259,9 +306,11 @@ const HomePage = () => {
     try {
       // Record share in database
       if (user) {
-        await supabase
+        const { error } = await supabase
           .from('social_shares')
           .insert({ user_id: user.id, platform });
+        
+        if (error) throw error;
       }
       
       console.log(`Shared on ${platform}`);
@@ -573,6 +622,11 @@ const HomePage = () => {
             View All Campaigns
           </button>
         </div>
+        {dataError && (
+          <div className="error-message">
+            Error loading campaigns: {dataError}
+          </div>
+        )}
         <div className="campaigns-grid">
           {activeCampaigns.length > 0 ? (
             activeCampaigns.slice(0, 3).map(renderCampaignCard)
@@ -593,6 +647,11 @@ const HomePage = () => {
             View Full Leaderboard
           </button>
         </div>
+        {dataError && (
+          <div className="error-message">
+            Error loading leaderboard: {dataError}
+          </div>
+        )}
         <div className="leaderboard-container">
           <table className="leaderboard-table">
             <thead>
@@ -627,6 +686,11 @@ const HomePage = () => {
       {/* Analytics Section */}
       <div className="analytics-section">
         <h2>Community Analytics</h2>
+        {dataError && (
+          <div className="error-message">
+            Error loading analytics: {dataError}
+          </div>
+        )}
         <div className="analytics-grid">
           <div className="metric-card">
             <div className="metric-value">{analytics.scans.toLocaleString()}</div>
