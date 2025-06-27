@@ -114,17 +114,14 @@ const HomePage = () => {
         
         // Leaderboard (only show users with points)
         const { data: leaderboardData } = await supabase
-          //.from('leaderboard')
-          .from('users')
-          //.select('*')
-          .select('id, email, points as total_points, level')
-          //.gt('total_points', 0)
-          //.order('total_points', { ascending: false })
-          .select('id, email, points as total_points, level')
+          .from('leaderboard')
+          .select('*')
+          .gt('total_points', 0)
+          .order('total_points', { ascending: false })
           .limit(10);
         
         setLeaderboard(leaderboardData || []);
-                
+        
         // Analytics
         const { count: scans } = await supabase
           .from('scans')
@@ -586,51 +583,46 @@ const HomePage = () => {
       </div>
 
       {/* Leaderboard Section */}
-      {/* Leaderboard Section */}
-<div className="leaderboard-section">
-  <div className="section-header">
-    <h2>Top Participants</h2>
-    <button 
-      className="view-all"
-      onClick={() => navigate('/leaderboard')}
-    >
-      View Full Leaderboard
-    </button>
-  </div>
-  <div className="leaderboard-container">
-    {leaderboard.length > 0 ? (
-      <table className="leaderboard-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Participant</th>
-            <th>Points</th>
-            <th>Level</th>
-          </tr>
-        </thead>
-        <tbody>
-          {leaderboard.map((entry, index) => (
-            <tr 
-              key={entry.id} 
-              className={index === 0 ? 'top-player' : ''}
-              onClick={() => user && navigate(`/profile/${entry.id}`)}
-            >
-              <td>{index + 1}</td>
-              <td>
-                {entry.email ? entry.email.split('@')[0] : 'Anonymous'}
-                {index === 0 && <span className="crown-icon">👑</span>}
-              </td>
-              <td>{entry.total_points || 0}</td>
-              <td>{entry.level || 1}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    ) : (
-      <p className="no-data-message">No participants yet. Be the first to scan!</p>
-    )}
-  </div>
-</div>
+      <div className="leaderboard-section">
+        <div className="section-header">
+          <h2>Top Participants</h2>
+          <button 
+            className="view-all"
+            onClick={() => navigate('/leaderboard')}
+          >
+            View Full Leaderboard
+          </button>
+        </div>
+        <div className="leaderboard-container">
+          <table className="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Participant</th>
+                <th>Points</th>
+                <th>Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((entry, index) => (
+                <tr 
+                  key={entry.id} 
+                  className={index === 0 ? 'top-player' : ''}
+                  onClick={() => user && navigate(`/profile/${entry.id}`)}
+                >
+                  <td>{index + 1}</td>
+                  <td>
+                    {entry.email.split('@')[0]}
+                    {index === 0 && <span className="crown-icon">👑</span>}
+                  </td>
+                  <td>{entry.total_points}</td>
+                  <td>{entry.level}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Analytics Section */}
       <div className="analytics-section">
