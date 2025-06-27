@@ -1,5 +1,7 @@
+/* D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.jsx */
+
 import React from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner'; // --- FIX: Import from the new, correct library
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { useNavigate } from 'react-router-dom';
 import './QRCodeScanner.css';
 
@@ -33,12 +35,19 @@ const QRCodeScanner = () => {
       <p>Point your camera at a Greenfield QR code to begin.</p>
       
       <div className="scanner-view-wrapper">
-        <Scanner // --- FIX: Use the new <Scanner /> component
+        <Scanner
           onResult={(text, result) => handleScanResult(text)}
           onError={(error) => console.log(error?.message)}
+          
+          // --- THE FIX: Explicitly request the rear-facing camera ---
+          constraints={{
+            facingMode: 'environment'
+          }}
+          // -----------------------------------------------------------
+
           components={{
             audio: false, 
-            tracker: true, 
+            tracker: false, // We disable the library's tracker to use our own CSS viewfinder
           }}
           styles={{
             container: {
@@ -46,6 +55,8 @@ const QRCodeScanner = () => {
             }
           }}
         />
+        {/* This div acts as our custom viewfinder styled by the CSS */}
+        <div className="scanner-viewfinder"></div>
       </div>
 
       <p style={{marginTop: '20px', fontSize: '0.9rem', color: '#6b7280'}}>

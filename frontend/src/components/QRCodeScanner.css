@@ -1,5 +1,7 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.css */
 
+/* D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.css */
+
 .scanner-page-container {
   display: flex;
   flex-direction: column;
@@ -28,13 +30,24 @@
   max-width: 600px;
 }
 
-/* This wrapper contains the camera feed from the new library */
+/* This wrapper will contain the camera feed */
 .scanner-view-wrapper {
   width: 100%;
   max-width: 450px;
   border-radius: 16px;
-  overflow: hidden; /* This is important to keep the video feed contained */
+  overflow: hidden; 
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   position: relative; /* Needed for the viewfinder overlay */
   border: 4px solid white;
+}
+
+/* --- NEW: This is the custom viewfinder overlay --- */
+.scanner-viewfinder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: inset 0 0 0 5px rgba(255, 0, 0, 0.7); /* Red border inside */
+  border-radius: 12px;
 }
