@@ -1,7 +1,5 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
 
-//D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
