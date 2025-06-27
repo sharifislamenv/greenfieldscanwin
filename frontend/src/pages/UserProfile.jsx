@@ -29,13 +29,14 @@ const UserProfile = () => {
       yaxis: { labels: { style: { colors: '#666' } } },
       grid: { borderColor: '#f0f0f0' },
       dataLabels: { enabled: false },
-      plotOptions: { bar: { borderRadius: 4 } }
+      plotOptions: { bar: { borderRadius: 4, horizontal: false, } }
     },
     series: [
       { name: 'Scans', data: [0, 0, 0, 0, 0, 0, 0] }
     ]
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState({ type: '', text: '' });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,28 +45,24 @@ const UserProfile = () => {
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
         
         if (authError || !authUser) {
-          navigate('/login');
+          navigate('/auth'); // Redirect to login if not authenticated
           return;
         }
         
-        // Get profile data
-        const { data: profileData } = await supabase
-          .from('users')
-          .select('points, level, badges, scans_today')
-          .eq('id', authUser.id)
-          .single();
-        
-        // Get available rewards
-        const { data: rewardsData } = await supabase
-          .from('rewards')
-          .select('*')
-          .lte('required_points', profileData?.points || 0)
-          .order('required_points', { ascending: true });
-        
-        // Get user activity
-        const { data: activity } = await supabase.rpc('get_user_activity', {
-          user_id: authUser.id
-        });
+        // Use Promise.all to fetch data in parallel for better performance
+        const [profileResponse, rewardsResponse, activityResponse] = await Promise.all([
+          supabase.from('users').select('points, level, badges, scans_today').eq('id', authUser.id).single(),
+          supabase.from('rewards').select('*').order('required_points', { ascending: true }),
+          supabase.rpc('get_user_activity', { user_id: authUser.id })
+        ]);
+
+        if (profileResponse.error) throw profileResponse.error;
+        if (rewardsResponse.error) throw rewardsResponse.error;
+        if (activityResponse.error) throw activityResponse.error;
+
+        const profileData = profileResponse.data;
+        const rewardsData = rewardsResponse.data;
+        const activity = activityResponse.data;
 
         if (profileData) {
           setUser(authUser);
@@ -75,7 +72,9 @@ const UserProfile = () => {
             badges: profileData.badges || [],
             scansToday: profileData.scans_today || 0
           });
-          setRewards(rewardsData || []);
+
+          // Filter rewards to show only those the user can afford
+          setRewards(rewardsData?.filter(r => r.required_points <= profileData.points) || []);
           
           if (activity) {
             setActivityData(prev => ({
@@ -86,6 +85,7 @@ const UserProfile = () => {
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
+        setMessage({ type: 'error', text: 'Failed to load profile data.' });
       } finally {
         setIsLoading(false);
       }
@@ -95,34 +95,52 @@ const UserProfile = () => {
   }, [navigate]);
 
   const handleRedeemReward = async (rewardId) => {
+    // A confirmation step is good UX
+    if (!window.confirm("Are you sure you want to redeem this reward?")) {
+        return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('user_rewards')
-        .insert([{ 
-          user_id: user.id, 
-          reward_id: rewardId,
-          redeemed_at: new Date().toISOString()
-        }]);
-      
-      if (error) throw error;
-      
-      // Update points after redemption
       const reward = rewards.find(r => r.id === rewardId);
+      if (!reward || profile.points < reward.required_points) {
+        throw new Error("You don't have enough points for this reward.");
+      }
+
+      // 1. Deduct points from user
       const newPoints = profile.points - reward.required_points;
-      
       const { error: updateError } = await supabase
         .from('users')
         .update({ points: newPoints })
         .eq('id', user.id);
         
-      if (!updateError) {
-        setProfile(prev => ({ ...prev, points: newPoints }));
-        setRewards(prev => prev.filter(r => r.id !== rewardId));
-        setMessage({ type: 'success', text: 'Reward redeemed successfully!' });
-      }
+      if (updateError) throw updateError;
+
+      // 2. Log the redemption
+      const { error: insertError } = await supabase
+        .from('user_rewards')
+        .insert([{ 
+          user_id: user.id, 
+          reward_id: rewardId,
+          reward_type: reward.type,
+          reward_value: reward.value
+        }]);
+      
+      if (insertError) throw insertError;
+      
+      // 3. Update state locally for instant UI feedback
+      setProfile(prev => ({ ...prev, points: newPoints }));
+      setRewards(prev => prev.filter(r => r.id !== rewardId));
+      setMessage({ type: 'success', text: 'Reward redeemed successfully!' });
+
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to redeem reward. Please try again.' });
+      console.error("Failed to redeem reward:", error);
+      setMessage({ type: 'error', text: error.message });
     }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/auth');
   };
 
   if (isLoading) {
@@ -134,30 +152,20 @@ const UserProfile = () => {
     );
   }
 
-  if (!user) {
-    return null; // Already handled by redirect
-  }
-
   return (
     <div className="user-profile">
+        {message.text && (
+            <div className={`auth-message ${message.type}`} onClick={() => setMessage({type:'', text:''})}>
+                {message.text}
+            </div>
+        )}
+
       <div className="profile-header">
         <div className="avatar">{user.email.charAt(0).toUpperCase()}</div>
         <div className="user-info">
           <h2>{user.email}</h2>
           <div className="profile-actions">
-            <button 
-              className="edit-profile"
-              onClick={() => navigate('/profile/edit')}
-            >
-              Edit Profile
-            </button>
-            <button 
-              className="logout-button"
-              onClick={async () => {
-                await supabase.auth.signOut();
-                navigate('/login');
-              }}
-            >
+            <button className="logout-button" onClick={handleLogout}>
               Logout
             </button>
           </div>
@@ -168,30 +176,14 @@ const UserProfile = () => {
         <div className="stat-card">
           <div className="stat-value">{profile.points}</div>
           <div className="stat-label">Points</div>
-          <div className="stat-description">
-            {profile.scansToday} scans today
-          </div>
         </div>
-        
         <div className="stat-card">
-          <div className="stat-value">Level {profile.level}</div>
-          <div className="stat-label">Current Level</div>
-          <div className="level-progress">
-            <div 
-              className="level-bar" 
-              style={{ width: `${(profile.level % 5) * 20}%` }}
-            ></div>
-          </div>
+          <div className="stat-value">{profile.level}</div>
+          <div className="stat-label">Level</div>
         </div>
-        
         <div className="stat-card">
           <div className="stat-value">{profile.badges.length}</div>
-          <div className="stat-label">Badges Earned</div>
-          {profile.badges.length > 0 && (
-            <div className="recent-badge">
-              Latest: {profile.badges[profile.badges.length - 1]}
-            </div>
-          )}
+          <div className="stat-label">Badges</div>
         </div>
       </div>
       
@@ -208,20 +200,10 @@ const UserProfile = () => {
       </div>
       
       <div className="badges-section">
-        <div className="section-header">
-          <h3>Your Badges</h3>
-          {profile.badges.length > 4 && (
-            <button 
-              className="view-all"
-              onClick={() => navigate('/badges')}
-            >
-              View All
-            </button>
-          )}
-        </div>
+        <h3>Your Badges</h3>
         {profile.badges.length > 0 ? (
           <div className="badges-grid">
-            {profile.badges.slice(0, 4).map((badge, index) => (
+            {profile.badges.map((badge, index) => (
               <div key={index} className="badge-item">
                 <div className="badge-icon">🏆</div>
                 <div className="badge-name">{badge}</div>
@@ -229,28 +211,12 @@ const UserProfile = () => {
             ))}
           </div>
         ) : (
-          <div className="empty-state">
-            <p>No badges yet. Complete challenges to earn badges!</p>
-            <button 
-              className="cta-button"
-              onClick={() => navigate('/challenges')}
-            >
-              View Challenges
-            </button>
-          </div>
+          <p>No badges earned yet. Keep scanning!</p>
         )}
       </div>
       
       <div className="rewards-section">
-        <div className="section-header">
-          <h3>Available Rewards</h3>
-          <button 
-            className="view-all"
-            onClick={() => navigate('/rewards')}
-          >
-            View All Rewards
-          </button>
-        </div>
+        <h3>Available Rewards</h3>
         {rewards.length > 0 ? (
           <div className="rewards-grid">
             {rewards.map((reward) => (
@@ -265,7 +231,7 @@ const UserProfile = () => {
                       className="redeem-button"
                       onClick={() => handleRedeemReward(reward.id)}
                     >
-                      Redeem Now
+                      Redeem
                     </button>
                   </div>
                 </div>
@@ -277,9 +243,9 @@ const UserProfile = () => {
             <p>You don't have enough points for rewards yet.</p>
             <button 
               className="cta-button"
-              onClick={() => navigate('/scan')}
+              onClick={() => navigate('/start-scan')}
             >
-              Start Scanning to Earn Points
+              Start Scanning
             </button>
           </div>
         )}
