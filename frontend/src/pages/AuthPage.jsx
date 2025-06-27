@@ -1,6 +1,6 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import './AuthPage.css';
@@ -24,12 +24,21 @@ const AuthPage = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
-        navigate('/');
+        setTimeout(() => navigate('/'), 1500); // Give user time to see success message
       } else if (mode === 'signup') {
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match');
         }
-        const { error } = await supabase.auth.signUp({ email, password });
+        if (password.length < 6) {
+          throw new Error('Password must be at least 6 characters');
+        }
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            emailRedirectTo: window.location.origin // Redirect after email confirmation
+          }
+        });
         if (error) throw error;
         setMessage({ 
           type: 'success', 
@@ -37,7 +46,12 @@ const AuthPage = () => {
         });
       }
     } catch (error) {
-      setMessage({ type: 'error', text: error.message });
+      setMessage({ 
+        type: 'error', 
+        text: error.message.includes('Invalid login credentials') 
+          ? 'Invalid email or password' 
+          : error.message 
+      });
     } finally {
       setLoading(false);
     }
@@ -49,13 +63,18 @@ const AuthPage = () => {
       return;
     }
     
+    // Basic email validation
+    if (!email.includes('@') || !email.includes('.')) {
+      setMessage({ type: 'error', text: 'Please enter a valid email address' });
+      return;
+    }
+
     setLoading(true);
     setMessage({ type: '', text: '' });
 
     try {
-      // This function triggers the "Recovery" email template in Supabase
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: 'https://greenfieldscanwin.vercel.app/reset',
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
       
@@ -101,6 +120,7 @@ const AuthPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength="6"
+            placeholder="At least 6 characters"
           />
         </div>
         
@@ -131,17 +151,38 @@ const AuthPage = () => {
           <>
             <p>
               Don't have an account?{' '}
-              <button onClick={() => { setMode('signup'); setMessage({type:'', text:''}); }}>Sign Up</button>
+              <button 
+                onClick={() => { 
+                  setMode('signup'); 
+                  setMessage({type:'', text:''}); 
+                }}
+                className="auth-link-button"
+              >
+                Sign Up
+              </button>
             </p>
             <p>
               Forgot password?{' '}
-              <button onClick={handlePasswordReset}>Reset Password</button>
+              <button 
+                onClick={handlePasswordReset}
+                className="auth-link-button"
+              >
+                Reset Password
+              </button>
             </p>
           </>
         ) : (
           <p>
             Already have an account?{' '}
-            <button onClick={() => { setMode('login'); setMessage({type:'', text:''}); }}>Login</button>
+            <button 
+              onClick={() => { 
+                setMode('login'); 
+                setMessage({type:'', text:''}); 
+              }}
+              className="auth-link-button"
+            >
+              Login
+            </button>
           </p>
         )}
       </div>
