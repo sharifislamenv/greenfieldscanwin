@@ -31,7 +31,6 @@
 /* Shared card style for all steps */
 .error-message,
 .location-check,
-.receipt-upload,
 .auth-required,
 .reward-unlock,
 .video-experience {
@@ -94,6 +93,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 10px;
 }
 
 .error-message button:hover,
@@ -106,54 +106,6 @@
 .continue-button {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
-
-/* Receipt upload input style and buttons */
-.upload-options {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  width: 100%;
-  max-width: 350px;
-  margin-top: 20px;
-}
-
-.upload-button {
-  border: none;
-  padding: 15px 30px;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.upload-button:disabled {
-  background: #e2e8f0;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.upload-button:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-}
-
-.upload-button.primary {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-  color: white;
-}
-
-.upload-button.secondary {
-  background: #f1f5f9;
-  color: #4b5563;
-  border: 1px solid #e2e8f0;
-}
-
 
 /* Reward Unlock specific styles */
 .reward-badge {
@@ -263,18 +215,14 @@
   .scan-container {
     padding: 15px;
   }
-  
   .scan-container h2 {
     font-size: 1.5rem;
   }
-  
   .scan-container p {
     font-size: 1rem;
   }
-  
   .error-message,
   .location-check,
-  .receipt-upload,
   .auth-required,
   .reward-unlock,
   .video-experience {
