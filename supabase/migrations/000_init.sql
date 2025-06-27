@@ -528,3 +528,16 @@ SELECT COUNT(*) FROM scans;
 SELECT COUNT(*) FROM social_shares;
 SELECT COUNT(*) FROM referrals;
 
+-- Granting explicit permissions to the internal postgres role is a robust way 
+-- to ensure triggers and functions have the access they need.
+GRANT ALL ON TABLE public.users TO postgres;
+
+-- This policy allows a user to insert their own corresponding row into the 
+-- public.users table. This is the primary fix for the sign-up trigger.
+CREATE POLICY "Allow users to insert their own profile"
+ON public.users
+FOR INSERT
+WITH CHECK (auth.uid() = id);
+
+
+
