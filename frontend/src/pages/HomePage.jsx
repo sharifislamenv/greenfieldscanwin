@@ -114,14 +114,17 @@ const HomePage = () => {
         
         // Leaderboard (only show users with points)
         const { data: leaderboardData } = await supabase
+          //.from('leaderboard')
           .from('users')
-          .select('*')
-          .gt('total_points', 0)
-          .order('total_points', { ascending: false })
+          //.select('*')
+          .select('id, email, points as total_points, level')
+          //.gt('total_points', 0)
+          //.order('total_points', { ascending: false })
+          .select('id, email, points as total_points, level')
           .limit(10);
         
         setLeaderboard(leaderboardData || []);
-        
+                
         // Analytics
         const { count: scans } = await supabase
           .from('scans')
