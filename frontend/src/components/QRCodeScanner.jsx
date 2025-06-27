@@ -32,6 +32,11 @@ const QRCodeScanner = () => {
     }
   };
 
+  const handleScanError = (error) => {
+    // Log the entire error object for detailed debugging if needed
+    console.error("Scanner Error Object:", error);
+  };
+
   return (
     <div className="scanner-page-container">
       <h2>Scan QR Code</h2>
@@ -43,26 +48,25 @@ const QRCodeScanner = () => {
       {isScannerActive && (
         <div className="scanner-view-wrapper">
           <Scanner
-            onResult={(text, result) => handleScanResult(text)}
-            onError={(error) => console.log(error?.message)}
-            //constraints={{ facingMode: 'environment' }}
-            //components={{ audio: false, tracker: false }}
-            //styles={{ container: { borderRadius: '16px' } }}
+            onResult={(text) => handleScanResult(text)}
+            onError={handleScanError}
+            
+            // --- MERGED AND FINALIZED PROPS ---
             constraints={{
-            facingMode: 'environment',
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 }
+              facingMode: 'environment',
+              width: { min: 640, ideal: 1280, max: 1920 },
+              height: { min: 480, ideal: 720, max: 1080 }
             }}
-            // ------------------------------------------
             components={{
-            audio: false, 
-            tracker: false,
+              audio: false, 
+              tracker: false, // Disable default tracker to use our CSS viewfinder
             }}
             styles={{
-            container: {
-            borderRadius: '16px'
-            }
+              container: {
+                borderRadius: '16px'
+              }
             }}
+            // ------------------------------------
           />
           <div className="scanner-viewfinder"></div>
         </div>
