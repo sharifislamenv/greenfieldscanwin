@@ -38,10 +38,11 @@ def generate_qr(store_id, banner_id, item_id, lat, lng, supabase_client: Client,
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
         box_size=12,
-        border=4,
+        border=8,
     )
     qr.add_data(f"https://greenfieldscanwin.vercel.app/scan?d={signed_data_for_qr}")
-    img = qr.make_image(fill_color="#2ecc71", back_color="white")
+    # img = qr.make_image(fill_color="#2ecc71", back_color="white")
+    img = qr.make_image()
 
     # --- ADDED BACK: Save a local copy of the QR code ---
     # Ensure the local directory exists
