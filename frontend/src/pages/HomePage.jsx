@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { FacebookShareButton, TwitterShareButton } from 'react-share';
+import { FacebookShareButton, TwitterShareButton, WhatsappShareButton } from 'react-share';
 import Chart from 'react-apexcharts';
 import './HomePage.css';
 
@@ -19,17 +19,36 @@ const HomePage = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   
   // App states
-  const [userStats, setUserStats] = useState({ points: 0, level: 1, badges: [] });
+  const [userStats, setUserStats] = useState({ 
+    points: 0, 
+    level: 1, 
+    badges: [],
+    scansToday: 0
+  });
+  
   const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [analytics, setAnalytics] = useState({ 
     scans: 0, 
     shares: 0, 
     redemptions: 0,
     chartData: {
       options: {
-        chart: { id: 'activity-chart' },
-        xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] }
+        chart: { 
+          id: 'activity-chart',
+          toolbar: { show: false }
+        },
+        colors: ['#4CAF50', '#2196F3'],
+        xaxis: { 
+          categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          labels: { style: { colors: '#666' } }
+        },
+        yaxis: { labels: { style: { colors: '#666' } } },
+        grid: { borderColor: '#f0f0f0' },
+        dataLabels: { enabled: false },
+        plotOptions: { bar: { borderRadius: 4 } }
       },
       series: [
         { name: 'Scans', data: [0,0,0,0,0,0,0] },
@@ -47,8 +66,9 @@ const HomePage = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setUser(session.user);
-        fetchUserData(session.user.id);
+        await fetchUserData(session.user.id);
       }
+      setIsLoading(false);
     };
     
     checkSession();
@@ -56,13 +76,24 @@ const HomePage = () => {
 
   // Fetch user data when authenticated
   const fetchUserData = async (userId) => {
-    const { data: stats } = await supabase
-      .from('users')
-      .select('points, level, badges')
-      .eq('id', userId)
-      .single();
-    
-    if (stats) setUserStats(stats);
+    try {
+      const { data: stats } = await supabase
+        .from('users')
+        .select('points, level, badges, scans_today')
+        .eq('id', userId)
+        .single();
+      
+      if (stats) {
+        setUserStats({
+          points: stats.points || 0,
+          level: stats.level || 1,
+          badges: stats.badges || [],
+          scansToday: stats.scans_today || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
   };
 
   // Fetch public data regardless of auth state
@@ -76,7 +107,8 @@ const HomePage = () => {
           .from('campaigns')
           .select('*')
           .lte('start_date', today)
-          .gte('end_date', today);
+          .gte('end_date', today)
+          .order('end_date', { ascending: true });
         
         setActiveCampaigns(campaigns || []);
         
@@ -86,7 +118,7 @@ const HomePage = () => {
           .select('*')
           .gt('total_points', 0)
           .order('total_points', { ascending: false })
-          .limit(5);
+          .limit(10);
         
         setLeaderboard(leaderboardData || []);
         
@@ -149,10 +181,19 @@ const HomePage = () => {
         setAuthSuccess('Login successful!');
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
-        fetchUserData(user.id);
+        await fetchUserData(user.id);
       } else {
         // Sign up user
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              points: 0,
+              level: 1
+            }
+          }
+        });
         if (error) throw error;
         
         setAuthSuccess(`Success! Check ${email} for confirmation.`);
@@ -169,63 +210,124 @@ const HomePage = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    setUserStats({ points: 0, level: 1, badges: [] });
+    setUserStats({ points: 0, level: 1, badges: [], scansToday: 0 });
     setAuthSuccess('You have been logged out');
   };
 
   // Handle scanning
   const handleStartScanning = () => {
-    //navigate('/scan');
-    // --- CHANGE: Update the navigation path ---
     navigate('/start-scan');
   };
 
-  const simulateScan = () => {
+  const simulateScan = async () => {
+    if (!user) return;
+    
     setScanStatus('scanning');
-    setTimeout(() => {
-      setScanStatus('success');
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update user stats
+      const { data } = await supabase
+        .from('users')
+        .update({ 
+          points: userStats.points + 10,
+          scans_today: userStats.scansToday + 1
+        })
+        .eq('id', user.id)
+        .select();
+      
+      if (data) {
+        setUserStats(prev => ({
+          ...prev,
+          points: prev.points + 10,
+          scansToday: prev.scansToday + 1
+        }));
+        
+        setScanStatus('success');
+        setTimeout(() => setScanStatus('idle'), 3000);
+      }
+    } catch (error) {
+      console.error('Scan error:', error);
+      setScanStatus('error');
       setTimeout(() => setScanStatus('idle'), 3000);
-    }, 2000);
+    }
   };
 
-  const handleSocialShare = (platform) => {
-    console.log(`Shared on ${platform}`);
+  const handleSocialShare = async (platform) => {
+    try {
+      // Record share in database
+      if (user) {
+        await supabase
+          .from('social_shares')
+          .insert({ user_id: user.id, platform });
+      }
+      
+      console.log(`Shared on ${platform}`);
+    } catch (error) {
+      console.error('Error recording share:', error);
+    }
   };
 
   const renderLevelProgress = () => {
-    const progress = (userStats.level / 4) * 100;
+    const progress = ((userStats.level % 4) / 4) * 100;
     return (
       <div className="level-progress">
         <div className="level-bar" style={{ width: `${progress}%` }}></div>
-        <div className="level-text">Level {userStats.level}/4</div>
+        <div className="level-text">Level {userStats.level} ({progress.toFixed(0)}%)</div>
       </div>
     );
   };
 
   const renderCampaignCard = (campaign) => (
     <div key={campaign.id} className="campaign-card">
-      <div className="campaign-badge">{campaign.type}</div>
+      <div className={`campaign-badge ${campaign.type.toLowerCase()}`}>
+        {campaign.type}
+      </div>
       <h3>{campaign.name}</h3>
       <p>{campaign.description}</p>
       <div className="campaign-dates">
-        {new Date(campaign.start_date).toLocaleDateString()} - 
+        {new Date(campaign.start_date).toLocaleDateString()} -{' '}
         {new Date(campaign.end_date).toLocaleDateString()}
       </div>
       <div className="campaign-reward">
-        Reward: {campaign.reward.value}
+        Reward: {campaign.reward.value} {campaign.reward.type}
       </div>
+      {user && (
+        <button 
+          className="campaign-button"
+          onClick={() => navigate(`/campaign/${campaign.id}`)}
+        >
+          View Details
+        </button>
+      )}
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="home-page">
       {/* Top Navigation Bar */}
       <div className="top-nav">
-        <div className="nav-logo">Greenfield Scan & Win</div>
+        <div className="nav-logo" onClick={() => window.scrollTo(0, 0)}>
+          <span className="logo-icon">🌿</span> Greenfield Scan & Win
+        </div>
         <div className="nav-auth">
           {user ? (
             <div className="user-nav">
               <span className="user-email">{user.email}</span>
+              <button className="nav-button" onClick={() => navigate('/profile')}>
+                Profile
+              </button>
               <button className="nav-button" onClick={handleLogout}>
                 Logout
               </button>
@@ -256,9 +358,17 @@ const HomePage = () => {
           <p>Discover exclusive offers and experiences within the Greenfield Ecosystem!</p>
           
           {user ? (
-            <button className="cta-button" onClick={handleStartScanning}>
-              Start Scanning
-            </button>
+            <div className="hero-actions">
+              <button className="cta-button" onClick={handleStartScanning}>
+                Start Scanning
+              </button>
+              <button 
+                className="secondary-button"
+                onClick={() => navigate('/rewards')}
+              >
+                View Rewards
+              </button>
+            </div>
           ) : (
             <div className="auth-container">
               <h2>{authMode === 'login' ? 'Login to Your Account' : 'Create Account'}</h2>
@@ -347,7 +457,15 @@ const HomePage = () => {
       {/* User Stats Section */}
       {user && (
         <div className="stats-section">
-          <h2>Your Progress</h2>
+          <div className="section-header">
+            <h2>Your Progress</h2>
+            <button 
+              className="view-all"
+              onClick={() => navigate('/profile')}
+            >
+              View Full Profile
+            </button>
+          </div>
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-value">{userStats.points}</div>
@@ -361,18 +479,34 @@ const HomePage = () => {
               <div className="stat-value">{userStats.level}</div>
               <div className="stat-label">Level</div>
             </div>
+            <div className="stat-card">
+              <div className="stat-value">{userStats.scansToday}</div>
+              <div className="stat-label">Today's Scans</div>
+            </div>
           </div>
           
           {renderLevelProgress()}
           
           <div className="badges-container">
-            {userStats.badges.map((badge, index) => (
-              <div key={index} className="badge-item">
-                <div className="badge-icon">🏆</div>
-                <div className="badge-name">{badge}</div>
+            <h3>Recent Badges</h3>
+            {userStats.badges.length > 0 ? (
+              <div className="badges-grid">
+                {userStats.badges.slice(0, 3).map((badge, index) => (
+                  <div key={index} className="badge-item">
+                    <div className="badge-icon">🏆</div>
+                    <div className="badge-name">{badge}</div>
+                  </div>
+                ))}
+                {userStats.badges.length > 3 && (
+                  <button 
+                    className="view-more"
+                    onClick={() => navigate('/profile')}
+                  >
+                    +{userStats.badges.length - 3} more
+                  </button>
+                )}
               </div>
-            ))}
-            {userStats.badges.length === 0 && (
+            ) : (
               <p>Complete challenges to earn badges!</p>
             )}
           </div>
@@ -385,12 +519,24 @@ const HomePage = () => {
         <div className="scanner-container">
           <div className={`scanner-ui ${scanStatus}`}>
             <div className="scanner-frame">
-              {scanStatus === 'idle' && <div className="scan-instruction">Point camera at QR code</div>}
+              {scanStatus === 'idle' && (
+                <>
+                  <div className="scan-instruction">Point camera at QR code</div>
+                  <div className="qr-guide"></div>
+                </>
+              )}
               {scanStatus === 'scanning' && <div className="scanning-animation"></div>}
               {scanStatus === 'success' && (
                 <div className="scan-success">
                   <div className="success-icon">✓</div>
-                  <div>Scan Successful!</div>
+                  <div>+10 Points!</div>
+                  <div className="success-message">Scan Successful!</div>
+                </div>
+              )}
+              {scanStatus === 'error' && (
+                <div className="scan-error">
+                  <div className="error-icon">✗</div>
+                  <div className="error-message">Scan Failed. Try Again.</div>
                 </div>
               )}
             </div>
@@ -408,25 +554,45 @@ const HomePage = () => {
                   ? 'Scan QR Code' 
                   : 'Login to Scan'}
             </button>
-            <p className="scan-tip">Scan QR codes on Greenfield products in-store to unlock rewards</p>
+            <p className="scan-tip">
+              Scan QR codes on Greenfield products in-store to unlock rewards. 
+              Earn 10 points per scan!
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Public Sections */}
+      {/* Campaigns Section */}
       <div className="campaigns-section">
-        <h2>Active Campaigns</h2>
+        <div className="section-header">
+          <h2>Active Campaigns</h2>
+          <button 
+            className="view-all"
+            onClick={() => navigate('/campaigns')}
+          >
+            View All Campaigns
+          </button>
+        </div>
         <div className="campaigns-grid">
           {activeCampaigns.length > 0 ? (
-            activeCampaigns.map(renderCampaignCard)
+            activeCampaigns.slice(0, 3).map(renderCampaignCard)
           ) : (
             <p>No active campaigns at the moment. Check back soon!</p>
           )}
         </div>
       </div>
 
+      {/* Leaderboard Section */}
       <div className="leaderboard-section">
-        <h2>Top Participants</h2>
+        <div className="section-header">
+          <h2>Top Participants</h2>
+          <button 
+            className="view-all"
+            onClick={() => navigate('/leaderboard')}
+          >
+            View Full Leaderboard
+          </button>
+        </div>
         <div className="leaderboard-container">
           <table className="leaderboard-table">
             <thead>
@@ -439,9 +605,16 @@ const HomePage = () => {
             </thead>
             <tbody>
               {leaderboard.map((entry, index) => (
-                <tr key={entry.id} className={index === 0 ? 'top-player' : ''}>
+                <tr 
+                  key={entry.id} 
+                  className={index === 0 ? 'top-player' : ''}
+                  onClick={() => user && navigate(`/profile/${entry.id}`)}
+                >
                   <td>{index + 1}</td>
-                  <td>{entry.email}</td>
+                  <td>
+                    {entry.email.split('@')[0]}
+                    {index === 0 && <span className="crown-icon">👑</span>}
+                  </td>
                   <td>{entry.total_points}</td>
                   <td>{entry.level}</td>
                 </tr>
@@ -451,19 +624,20 @@ const HomePage = () => {
         </div>
       </div>
 
+      {/* Analytics Section */}
       <div className="analytics-section">
-        <h2>Campaign Analytics</h2>
+        <h2>Community Analytics</h2>
         <div className="analytics-grid">
           <div className="metric-card">
-            <div className="metric-value">{analytics.scans}</div>
+            <div className="metric-value">{analytics.scans.toLocaleString()}</div>
             <div className="metric-label">Total Scans</div>
           </div>
           <div className="metric-card">
-            <div className="metric-value">{analytics.shares}</div>
+            <div className="metric-value">{analytics.shares.toLocaleString()}</div>
             <div className="metric-label">Social Shares</div>
           </div>
           <div className="metric-card">
-            <div className="metric-value">{analytics.redemptions}</div>
+            <div className="metric-value">{analytics.redemptions.toLocaleString()}</div>
             <div className="metric-label">Rewards Redeemed</div>
           </div>
         </div>
@@ -473,7 +647,7 @@ const HomePage = () => {
             options={analytics.chartData.options}
             series={analytics.chartData.series}
             type="bar"
-            height={300}
+            height={350}
           />
         </div>
       </div>
@@ -486,26 +660,50 @@ const HomePage = () => {
           <div className="social-buttons">
             <FacebookShareButton
               url={window.location.href}
-              quote={"I'm participating in Greenfield's Scan & Win challenge!"}
+              quote={`I've earned ${userStats.points} points on Greenfield Scan & Win! Join me in this exciting challenge.`}
+              hashtag="#GreenfieldScanWin"
               onClick={() => handleSocialShare('facebook')}
             >
               <button className="social-button facebook">
-                Share on Facebook
+                <span className="icon">👍</span> Share on Facebook
               </button>
             </FacebookShareButton>
             
             <TwitterShareButton
               url={window.location.href}
-              title={"Join me in Greenfield's Scan & Win challenge! #GreenfieldLights"}
+              title={`I'm at level ${userStats.level} with ${userStats.points} points on @Greenfield's Scan & Win! #GreenfieldScanWin`}
               onClick={() => handleSocialShare('twitter')}
             >
               <button className="social-button twitter">
-                Share on Twitter
+                <span className="icon">🐦</span> Share on Twitter
               </button>
             </TwitterShareButton>
+            
+            <WhatsappShareButton
+              url={window.location.href}
+              title={`Join me on Greenfield Scan & Win! I've already earned ${userStats.points} points.`}
+              onClick={() => handleSocialShare('whatsapp')}
+            >
+              <button className="social-button whatsapp">
+                <span className="icon">💬</span> Share on WhatsApp
+              </button>
+            </WhatsappShareButton>
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <div className="footer">
+        <div className="footer-links">
+          <button onClick={() => navigate('/about')}>About Us</button>
+          <button onClick={() => navigate('/terms')}>Terms</button>
+          <button onClick={() => navigate('/privacy')}>Privacy</button>
+          <button onClick={() => navigate('/contact')}>Contact</button>
+        </div>
+        <div className="footer-copyright">
+          © {new Date().getFullYear()} Greenfield. All rights reserved.
+        </div>
+      </div>
     </div>
   );
 };

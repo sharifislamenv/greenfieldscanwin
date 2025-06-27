@@ -1,5 +1,7 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
 
+//D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -24,7 +26,7 @@ const AuthPage = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
-        setTimeout(() => navigate('/'), 1500); // Give user time to see success message
+        setTimeout(() => navigate('/'), 1500);
       } else if (mode === 'signup') {
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match');
@@ -36,7 +38,7 @@ const AuthPage = () => {
           email, 
           password,
           options: {
-            emailRedirectTo: window.location.origin // Redirect after email confirmation
+            emailRedirectTo: window.location.origin
           }
         });
         if (error) throw error;
@@ -46,6 +48,7 @@ const AuthPage = () => {
         });
       }
     } catch (error) {
+      console.error('Authentication error:', error);
       setMessage({ 
         type: 'error', 
         text: error.message.includes('Invalid login credentials') 
@@ -63,7 +66,6 @@ const AuthPage = () => {
       return;
     }
     
-    // Basic email validation
     if (!email.includes('@') || !email.includes('.')) {
       setMessage({ type: 'error', text: 'Please enter a valid email address' });
       return;
