@@ -1,30 +1,33 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.jsx */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { useNavigate } from 'react-router-dom';
 import './QRCodeScanner.css';
 
 const QRCodeScanner = () => {
   const navigate = useNavigate();
+  const [isScannerActive, setIsScannerActive] = useState(false);
 
   const handleScanResult = (scannedText) => {
     if (scannedText) {
       console.log(`Scan successful, raw text: ${scannedText}`);
+      setIsScannerActive(false); // Turn off scanner after a successful scan
 
       try {
         const urlObject = new URL(scannedText);
         const dataParam = urlObject.searchParams.get('d');
         
         if (dataParam) {
-          // Navigate to the validation page with the data
-          navigate(`/scan?d=${dataParam}`);
+          navigate(`/scan?d=${dataParam}`); // Navigate to the validation page
         } else {
           alert("This does not appear to be a valid Greenfield QR Code.");
+          navigate('/'); // Go home on invalid code
         }
       } catch (e) {
         console.error("Scanned content is not a valid URL:", e);
         alert("Scanned code is not a valid URL.");
+        navigate('/'); // Go home on invalid code
       }
     }
   };
@@ -32,36 +35,34 @@ const QRCodeScanner = () => {
   return (
     <div className="scanner-page-container">
       <h2>Scan QR Code</h2>
-      <p>Point your camera at a Greenfield QR code to begin.</p>
       
-      <div className="scanner-view-wrapper">
-        <Scanner
-          onResult={(text, result) => handleScanResult(text)}
-          onError={(error) => console.log(error?.message)}
-          
-          // --- THE FIX: Explicitly request the rear-facing camera ---
-          constraints={{
-            facingMode: 'environment'
-          }}
-          // -----------------------------------------------------------
+      {!isScannerActive && (
+        <p>Click "Start Scan" to activate your camera.</p>
+      )}
 
-          components={{
-            audio: false, 
-            tracker: false, // We disable the library's tracker to use our own CSS viewfinder
-          }}
-          styles={{
-            container: {
-              borderRadius: '16px'
-            }
-          }}
-        />
-        {/* This div acts as our custom viewfinder styled by the CSS */}
-        <div className="scanner-viewfinder"></div>
+      {isScannerActive && (
+        <div className="scanner-view-wrapper">
+          <Scanner
+            onResult={(text, result) => handleScanResult(text)}
+            onError={(error) => console.log(error?.message)}
+            constraints={{ facingMode: 'environment' }}
+            components={{ audio: false, tracker: false }}
+            styles={{ container: { borderRadius: '16px' } }}
+          />
+          <div className="scanner-viewfinder"></div>
+        </div>
+      )}
+
+      <div className="scanner-actions">
+        {!isScannerActive && (
+            <button className="action-button primary" onClick={() => setIsScannerActive(true)}>
+              Start Scan
+            </button>
+        )}
+        <button className="action-button secondary" onClick={() => navigate('/')}>
+          Return to Home
+        </button>
       </div>
-
-      <p style={{marginTop: '20px', fontSize: '0.9rem', color: '#6b7280'}}>
-        Looking for a QR code...
-      </p>
     </div>
   );
 };
