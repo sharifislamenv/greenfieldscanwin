@@ -114,7 +114,7 @@ const HomePage = () => {
         
         // Leaderboard (only show users with points)
         const { data: leaderboardData } = await supabase
-          .from('leaderboard')
+          .from('users')
           .select('*')
           .gt('total_points', 0)
           .order('total_points', { ascending: false })
