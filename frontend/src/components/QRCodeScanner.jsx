@@ -45,9 +45,24 @@ const QRCodeScanner = () => {
           <Scanner
             onResult={(text, result) => handleScanResult(text)}
             onError={(error) => console.log(error?.message)}
-            constraints={{ facingMode: 'environment' }}
-            components={{ audio: false, tracker: false }}
-            styles={{ container: { borderRadius: '16px' } }}
+            //constraints={{ facingMode: 'environment' }}
+            //components={{ audio: false, tracker: false }}
+            //styles={{ container: { borderRadius: '16px' } }}
+            constraints={{
+            facingMode: 'environment',
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 }
+            }}
+            // ------------------------------------------
+            components={{
+            audio: false, 
+            tracker: false,
+            }}
+            styles={{
+            container: {
+            borderRadius: '16px'
+            }
+            }}
           />
           <div className="scanner-viewfinder"></div>
         </div>
