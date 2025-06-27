@@ -1,7 +1,5 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
 
-//D:\MyProjects\greenfield-scanwin\frontend\src\pages\AuthPage.jsx
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -34,14 +32,37 @@ const AuthPage = () => {
         if (password.length < 6) {
           throw new Error('Password must be at least 6 characters');
         }
-        const { error } = await supabase.auth.signUp({ 
+        
+        // Create user with additional metadata
+        const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            emailRedirectTo: window.location.origin
+            emailRedirectTo: window.location.origin,
+            data: {
+              points: 0,
+              level: 1,
+              badges: []
+            }
           }
         });
+        
         if (error) throw error;
+        
+        // Create user profile in public.users table
+        if (data.user) {
+          await supabase
+            .from('users')
+            .insert([{
+              id: data.user.id,
+              email: data.user.email,
+              points: 0,
+              level: 1,
+              badges: [],
+              scans_today: 0
+            }]);
+        }
+        
         setMessage({ 
           type: 'success', 
           text: `Success! Please check ${email} to confirm your account.` 
@@ -49,11 +70,17 @@ const AuthPage = () => {
       }
     } catch (error) {
       console.error('Authentication error:', error);
+      let errorMsg = error.message;
+      
+      if (error.message.includes('User already registered')) {
+        errorMsg = 'An account with this email already exists.';
+      } else if (error.message.includes('Database error')) {
+        errorMsg = 'We encountered an issue creating your account. Please try again.';
+      }
+      
       setMessage({ 
         type: 'error', 
-        text: error.message.includes('Invalid login credentials') 
-          ? 'Invalid email or password' 
-          : error.message 
+        text: errorMsg
       });
     } finally {
       setLoading(false);
@@ -93,100 +120,115 @@ const AuthPage = () => {
 
   return (
     <div className="auth-page">
-      <h2>
-        {mode === 'login' ? 'Login' : 'Create Account'}
-      </h2>
-      
-      {message.text && (
-        <div className={`auth-message ${message.type}`}>
-          {message.text}
-        </div>
-      )}
-      
-      <form onSubmit={handleAuth}>
-        <div className="form-group">
-          <label>Email</label>
-          <input 
-            type="email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
+      <div className="auth-container">
+        <h2>
+          {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
+        </h2>
+        <p className="auth-subtitle">
+          {mode === 'login' 
+            ? 'Login to access your rewards and scanning history' 
+            : 'Join our community to start earning points'}
+        </p>
         
-        <div className="form-group">
-          <label>Password</label>
-          <input 
-            type="password" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength="6"
-            placeholder="At least 6 characters"
-          />
-        </div>
-        
-        {mode === 'signup' && (
-          <div className="form-group">
-            <label>Confirm Password</label>
-            <input 
-              type="password" 
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength="6"
-            />
+        {message.text && (
+          <div className={`auth-message ${message.type}`}>
+            {message.text}
           </div>
         )}
         
-        <button 
-          type="submit" 
-          className="auth-button"
-          disabled={loading}
-        >
-          {loading ? 'Processing...' : mode === 'login' ? 'Login' : 'Sign Up'}
-        </button>
-      </form>
-      
-      <div className="auth-switch">
-        {mode === 'login' ? (
-          <>
+        <form onSubmit={handleAuth}>
+          <div className="form-group">
+            <label>Email</label>
+            <input 
+              type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="your@email.com"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength="6"
+              placeholder="At least 6 characters"
+            />
+          </div>
+          
+          {mode === 'signup' && (
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <input 
+                type="password" 
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength="6"
+                placeholder="Confirm your password"
+              />
+            </div>
+          )}
+          
+          <button 
+            type="submit" 
+            className="auth-button"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="spinner"></span>
+            ) : mode === 'login' ? (
+              'Login'
+            ) : (
+              'Create Account'
+            )}
+          </button>
+        </form>
+        
+        <div className="auth-switch">
+          {mode === 'login' ? (
+            <>
+              <p>
+                Don't have an account?{' '}
+                <button 
+                  onClick={() => { 
+                    setMode('signup'); 
+                    setMessage({type:'', text:''}); 
+                  }}
+                  className="auth-link-button"
+                >
+                  Sign Up
+                </button>
+              </p>
+              <p>
+                Forgot password?{' '}
+                <button 
+                  onClick={handlePasswordReset}
+                  className="auth-link-button"
+                >
+                  Reset Password
+                </button>
+              </p>
+            </>
+          ) : (
             <p>
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <button 
                 onClick={() => { 
-                  setMode('signup'); 
+                  setMode('login'); 
                   setMessage({type:'', text:''}); 
                 }}
                 className="auth-link-button"
               >
-                Sign Up
+                Login
               </button>
             </p>
-            <p>
-              Forgot password?{' '}
-              <button 
-                onClick={handlePasswordReset}
-                className="auth-link-button"
-              >
-                Reset Password
-              </button>
-            </p>
-          </>
-        ) : (
-          <p>
-            Already have an account?{' '}
-            <button 
-              onClick={() => { 
-                setMode('login'); 
-                setMessage({type:'', text:''}); 
-              }}
-              className="auth-link-button"
-            >
-              Login
-            </button>
-          </p>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
