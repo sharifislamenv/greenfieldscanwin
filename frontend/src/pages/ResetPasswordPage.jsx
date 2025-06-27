@@ -1,55 +1,89 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\ResetPasswordPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import './AuthPage.css';
+import './ResetPasswordPage.css'; // New dedicated CSS file
 
 const ResetPasswordPage = () => {
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isTokenValid, setIsTokenValid] = useState(false);
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    number: false,
+    specialChar: false
+  });
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Check password strength
   useEffect(() => {
-    // Supabase automatically detects the session from the URL hash.
-    // We listen for the PASSWORD_RECOVERY event to confirm success.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsTokenValid(true);
+    const requirements = {
+      length: newPassword.length >= 8,
+      number: /\d/.test(newPassword),
+      specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+    };
+    setPasswordRequirements(requirements);
+  }, [newPassword]);
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      try {
+        // Extract access token from URL if present
+        const accessToken = searchParams.get('access_token');
+        const refreshToken = searchParams.get('refresh_token');
+        
+        if (accessToken && refreshToken) {
+          // Set the session using the tokens from the URL
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) throw error;
+          setIsTokenValid(true);
+        } else {
+          throw new Error('Missing token parameters');
+        }
+      } catch (error) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Invalid or expired password reset link. Please request a new one.' 
+        });
+      } finally {
         setLoading(false);
       }
-    });
-
-    // A fallback timer in case the event doesn't fire (e.g., bad link)
-    const timer = setTimeout(() => {
-        if (loading) {
-            setLoading(false);
-            if (!isTokenValid) {
-                setMessage({ type: 'error', text: 'Invalid or expired password reset link.' });
-            }
-        }
-    }, 3000);
-
-    return () => {
-      subscription?.unsubscribe();
-      clearTimeout(timer);
     };
-  }, [loading, isTokenValid]);
+
+    verifyToken();
+  }, [searchParams]);
 
   const handleSetNewPassword = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
-      return;
-    }
-
     setLoading(true);
     setMessage({ type: '', text: '' });
 
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match' });
+      setLoading(false);
+      return;
+    }
+
+    // Validate password strength
+    if (!passwordRequirements.length || !passwordRequirements.number || !passwordRequirements.specialChar) {
+      setMessage({ 
+        type: 'error', 
+        text: 'Password must be at least 8 characters long and contain a number and special character' 
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
-      // The user is already authenticated via the token at this point.
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       
@@ -58,65 +92,125 @@ const ResetPasswordPage = () => {
         text: 'Password updated successfully! Redirecting to login...' 
       });
 
+      // Sign out and redirect after success
       setTimeout(async () => {
         await supabase.auth.signOut();
-        navigate('/auth');
+        navigate('/login', { state: { fromPasswordReset: true } });
       }, 3000);
 
     } catch (error) {
-      setMessage({ type: 'error', text: error.message });
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'Failed to update password. Please try again.' 
+      });
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="auth-page"><h2>Verifying link...</h2></div>;
+    return (
+      <div className="reset-password-container">
+        <div className="reset-password-card">
+          <div className="loading-spinner"></div>
+          <h2>Verifying your reset link...</h2>
+        </div>
+      </div>
+    );
   }
-  
+
   if (!isTokenValid) {
     return (
-        <div className="auth-page">
-            <h2>Invalid Link</h2>
-            {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
-            <div className="auth-switch">
-                <p>
-                    <button onClick={() => navigate('/auth')}>Return to Login</button>
-                </p>
-            </div>
+      <div className="reset-password-container">
+        <div className="reset-password-card">
+          <h2>Invalid Password Reset Link</h2>
+          {message.text && (
+            <div className={`message ${message.type}`}>{message.text}</div>
+          )}
+          <div className="action-links">
+            <button 
+              onClick={() => navigate('/forgot-password')}
+              className="secondary-button"
+            >
+              Request New Reset Link
+            </button>
+            <button 
+              onClick={() => navigate('/login')}
+              className="primary-button"
+            >
+              Return to Login
+            </button>
+          </div>
         </div>
+      </div>
     );
   }
 
   return (
-    <div className="auth-page">
-      <h2>Set a New Password</h2>
-      
-      {message.text && (
-        <div className={`auth-message ${message.type}`}>{message.text}</div>
-      )}
-      
-      <form onSubmit={handleSetNewPassword}>
-        <div className="form-group">
-          <label>New Password</label>
-          <input 
-            type="password"
-            placeholder="Enter your new password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength="6"
-          />
-        </div>
+    <div className="reset-password-container">
+      <div className="reset-password-card">
+        <h2>Set a New Password</h2>
         
-        <button 
-          type="submit" 
-          className="auth-button"
-          disabled={loading}
-        >
-          {loading ? 'Updating...' : 'Update Password'}
-        </button>
-      </form>
+        {message.text && (
+          <div className={`message ${message.type}`}>{message.text}</div>
+        )}
+
+        <form onSubmit={handleSetNewPassword}>
+          <div className="form-group">
+            <label htmlFor="newPassword">New Password</label>
+            <input
+              id="newPassword"
+              type="password"
+              placeholder="Enter your new password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              placeholder="Confirm your new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="password-strength">
+            <h4>Password Requirements:</h4>
+            <ul>
+              <li className={passwordRequirements.length ? 'valid' : ''}>
+                At least 8 characters
+              </li>
+              <li className={passwordRequirements.number ? 'valid' : ''}>
+                Contains a number
+              </li>
+              <li className={passwordRequirements.specialChar ? 'valid' : ''}>
+                Contains a special character
+              </li>
+            </ul>
+          </div>
+
+          <button 
+            type="submit" 
+            className="primary-button"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Updating...
+              </>
+            ) : (
+              'Update Password'
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
