@@ -1,63 +1,69 @@
-
-// D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.jsx
-
-import React from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner'; // Import from the new library
+import React, { useEffect, useRef } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
-import './QRCodeScanner.css';
+import './QRCodeScanner.css'; // --- NEW: Import the CSS file ---
 
 const QRCodeScanner = () => {
+  const scannerRef = useRef(null);
   const navigate = useNavigate();
 
-  const handleScanResult = (scannedText) => {
-    if (scannedText) {
-      console.log(`Scan successful, raw text: ${scannedText}`);
+  useEffect(() => {
+    // This function will be called on successful scan
+    const onScanSuccess = (decodedText, decodedResult) => {
+      console.log(`Scan successful, decoded text: ${decodedText}`);
+      
+      // Stop the scanner
+      scanner.clear().catch(error => {
+        console.error("Failed to clear scanner.", error);
+      });
 
+      // Extract the '?d=...' parameter from the scanned URL
       try {
-        // We will try to parse the scanned text as a URL
-        const urlObject = new URL(scannedText);
-        // And get the 'd' parameter from it
+        const urlObject = new URL(decodedText);
         const dataParam = urlObject.searchParams.get('d');
-        
         if (dataParam) {
-          // If successful, navigate to the validation page with the data
+          // Navigate to the validation page with the data
           navigate(`/scan?d=${dataParam}`);
         } else {
-          // If the URL is valid but has no 'd' parameter
-          alert("This does not appear to be a valid Greenfield QR Code.");
+          console.error("Scanned QR code does not contain the 'd' parameter.");
         }
-      } catch (e) {
-        // If the scanned text is not a valid URL at all
-        console.error("Scanned content is not a valid URL:", e);
-        alert("Scanned code is not a valid URL.");
+      } catch (error) {
+        console.error("Scanned content is not a valid URL:", error);
       }
-    }
-  };
+    };
+
+    // This function will be called on scan failure
+    const onScanFailure = (error) => {
+      // The library will continuously scan, so we can ignore individual failures.
+    };
+
+    const scanner = new Html5QrcodeScanner(
+      'qr-code-reader', 
+      { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 } 
+      },
+      false // Use verbose = false
+    );
+
+    scanner.render(onScanSuccess, onScanFailure);
+
+    // Cleanup function to clear the scanner when the component is unmounted
+    return () => {
+      if (scanner && scanner.getState() !== "NOT_STARTED") {
+        scanner.clear().catch(error => {
+          console.error("Failed to clear scanner on unmount.", error);
+        });
+      }
+    };
+  }, [navigate]);
 
   return (
+    // --- NEW: Add the main className ---
     <div className="scanner-page-container">
       <h2>Scan QR Code</h2>
       <p>Point your camera at a Greenfield QR code to begin.</p>
-      
-      <div className="scanner-view-wrapper">
-        <Scanner
-          onResult={(text, result) => handleScanResult(text)}
-          onError={(error) => console.log(error?.message)}
-          components={{
-            audio: false, // Turn off the "beep" sound
-            tracker: true, // Show the tracking box
-          }}
-          styles={{
-            container: {
-              borderRadius: '16px' // Match the wrapper style
-            }
-          }}
-        />
-      </div>
-
-      <p style={{marginTop: '20px', fontSize: '0.9rem', color: '#6b7280'}}>
-        Looking for a QR code...
-      </p>
+      <div id="qr-code-reader"></div>
     </div>
   );
 };

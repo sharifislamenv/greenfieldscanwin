@@ -1,5 +1,7 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.css */
 
+/* D:\MyProjects\greenfield-scanwin\frontend\src\pages\ScanPage.css */
+
 .scan-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -31,6 +33,7 @@
 /* Shared card style for all steps */
 .error-message,
 .location-check,
+.receipt-upload,
 .auth-required,
 .reward-unlock,
 .video-experience {
@@ -93,7 +96,6 @@
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 10px;
 }
 
 .error-message button:hover,
@@ -105,6 +107,22 @@
 
 .continue-button {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+/* Receipt upload input style */
+.receipt-upload input[type="file"] {
+  width: 100%;
+  padding: 15px;
+  border: 2px dashed #e5e7eb;
+  border-radius: 10px;
+  margin: 10px 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.receipt-upload input[type="file"]:hover {
+  border-color: #3b82f6;
+  background: #f0f9ff;
 }
 
 /* Reward Unlock specific styles */
@@ -215,14 +233,18 @@
   .scan-container {
     padding: 15px;
   }
+  
   .scan-container h2 {
     font-size: 1.5rem;
   }
+  
   .scan-container p {
     font-size: 1rem;
   }
+  
   .error-message,
   .location-check,
+  .receipt-upload,
   .auth-required,
   .reward-unlock,
   .video-experience {
