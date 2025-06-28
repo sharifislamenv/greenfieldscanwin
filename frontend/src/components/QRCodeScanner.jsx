@@ -1,7 +1,7 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.jsx */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import './QRCodeScanner.css';
 
@@ -11,10 +11,9 @@ const QRCodeScanner = () => {
   const [hasFlash, setHasFlash] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const scannerRef = useRef(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState(false);
   const [scanAttempts, setScanAttempts] = useState(0);
-  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef(null);
+  const html5QrCodeScanner = useRef(null);
 
   const checkCameraAvailability = async () => {
     try {
@@ -23,24 +22,13 @@ const QRCodeScanner = () => {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
+        video: { facingMode: 'environment' }
       });
-
-      const videoTrack = stream.getVideoTracks()[0];
-      if (!videoTrack) throw new Error('No video track available');
-
       stream.getTracks().forEach(track => track.stop());
-      
-      setHasCameraPermission(true);
       return true;
     } catch (err) {
       console.error('Camera check failed:', err);
       setError(getUserFriendlyError(err));
-      setHasCameraPermission(false);
       return false;
     }
   };
@@ -62,18 +50,16 @@ const QRCodeScanner = () => {
     }
   };
 
-  const handleScanResult = (text, result) => {
-    if (!text || isScanning) return;
+  const handleScanResult = (decodedText, decodedResult) => {
+    if (!decodedText) return;
     
-    setIsScanning(true);
-    console.log('Scan result:', { text, result });
+    console.log('Scan result:', { decodedText, decodedResult });
     
     // Validate URL format
-    if (!text.startsWith('http') && !text.startsWith('https')) {
+    if (!decodedText.startsWith('http') && !decodedText.startsWith('https')) {
       setError('Invalid QR code format. Please scan a valid URL.');
       setScanAttempts(prev => prev + 1);
       if (scanAttempts >= 2) setIsScannerActive(false);
-      setIsScanning(false);
       return;
     }
 
@@ -81,19 +67,26 @@ const QRCodeScanner = () => {
     if ('vibrate' in navigator) navigator.vibrate(100);
 
     try {
-      const url = new URL(text);
+      const url = new URL(decodedText);
       const dataParam = url.searchParams.get('d');
       
       if (dataParam) {
-        navigate(`/scan?d=${encodeURIComponent(dataParam)}`);
+        html5QrCodeScanner.current?.stop().then(() => {
+          navigate(`/scan?d=${encodeURIComponent(dataParam)}`);
+        });
       } else {
         setError('This QR code doesn\'t contain valid scan data.');
       }
     } catch (e) {
       console.error("URL parsing error:", e);
       setError("Couldn't process QR code data. Please try again.");
-    } finally {
-      setIsScanning(false);
+    }
+  };
+
+  const handleScanError = (error) => {
+    if (!error.message.includes('NotFoundException')) {
+      console.error('Scanner error:', error);
+      setError(`Scanning failed: ${error.message || 'Please try again'}`);
     }
   };
 
@@ -105,6 +98,26 @@ const QRCodeScanner = () => {
       const hasCamera = await checkCameraAvailability();
       if (!hasCamera) throw new Error('Camera not available');
 
+      if (html5QrCodeScanner.current) {
+        html5QrCodeScanner.current.clear();
+      }
+
+      html5QrCodeScanner.current = new Html5QrcodeScanner(
+        "qr-scanner-container",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          rememberLastUsedCamera: true,
+          supportedScanTypes: [1] // Camera scan only
+        },
+        false
+      );
+
+      html5QrCodeScanner.current.render(
+        handleScanResult,
+        handleScanError
+      );
+
       setIsScannerActive(true);
       setScanAttempts(0);
     } catch (err) {
@@ -115,23 +128,36 @@ const QRCodeScanner = () => {
     }
   };
 
-  const toggleFlash = () => {
-    if (scannerRef.current && scannerRef.current.torch !== undefined) {
-      const newState = !hasFlash;
-      scannerRef.current.torch = newState;
-      setHasFlash(newState);
+  const toggleFlash = async () => {
+    if (html5QrCodeScanner.current) {
+      try {
+        const newState = !hasFlash;
+        await html5QrCodeScanner.current.applyVideoConstraints({
+          advanced: [{ torch: newState }]
+        });
+        setHasFlash(newState);
+      } catch (err) {
+        console.error('Flash toggle failed:', err);
+        setError('Flash not supported on this device');
+      }
     }
   };
 
-  useEffect(() => {
-    const init = async () => {
-      await checkCameraAvailability();
-    };
-    init();
+  const stopScanner = () => {
+    if (html5QrCodeScanner.current) {
+      html5QrCodeScanner.current.clear().catch(err => {
+        console.error('Failed to stop scanner:', err);
+      });
+    }
+    setIsScannerActive(false);
+  };
 
+  useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop();
+      if (html5QrCodeScanner.current) {
+        html5QrCodeScanner.current.clear().catch(err => {
+          console.error('Failed to clean up scanner:', err);
+        });
       }
     };
   }, []);
@@ -173,58 +199,7 @@ const QRCodeScanner = () => {
 
       {isScannerActive && !isLoading && (
         <div className="scanner-view-wrapper">
-          <Scanner
-            ref={scannerRef}
-            onResult={(text, result) => handleScanResult(text, result)}
-            onError={(err) => {
-              console.error('Scanner error:', err);
-              setError(`Scanning failed: ${err.message}`);
-              setIsScannerActive(false);
-            }}
-            torch={hasFlash}
-            constraints={{
-              facingMode: 'environment',
-              width: { ideal: 1920 },
-              height: { ideal: 1080 }
-            }}
-            options={{
-              delayBetweenScanAttempts: 100,
-              maxScansPerSecond: 30,
-              highlightScanRegion: true,
-              highlightCodeOutline: true,
-              returnDetailedScanResult: true,
-              preferredCamera: 'environment',
-              scanRegion: {
-                x: 25,
-                y: 25,
-                width: 50,
-                height: 50
-              },
-              formatsToSupport: [
-                'qr_code',
-                'ean_13',
-                'ean_8',
-                'code_128',
-                'code_39',
-                'code_93',
-                'codabar',
-                'upc_a',
-                'upc_e'
-              ]
-            }}
-            styles={{
-              container: {
-                width: '100%',
-                height: '100%',
-                position: 'relative'
-              },
-              video: {
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }
-            }}
-          />
+          <div id="qr-scanner-container"></div>
           <div className="scanner-viewfinder"></div>
           <div className="scanner-hint">Align QR code within frame</div>
         </div>
@@ -250,7 +225,7 @@ const QRCodeScanner = () => {
             </button>
             <button 
               className="action-button secondary" 
-              onClick={() => setIsScannerActive(false)}
+              onClick={stopScanner}
             >
               Stop Scanner
             </button>
