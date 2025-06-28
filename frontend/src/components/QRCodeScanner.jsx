@@ -9,14 +9,27 @@ const QRCodeScanner = () => {
   const navigate = useNavigate();
   const [isScannerActive, setIsScannerActive] = useState(false);
   const [hasFlash, setHasFlash] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Start with loading true
+  const [isLoading, setIsLoading] = useState(false); // Start with loading false
   const [scanHistory, setScanHistory] = useState([]);
   const [error, setError] = useState(null);
   const scannerRef = useRef(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(false);
 
-  // Check camera capabilities
+  // Check camera capabilities and permissions
   const checkCameraAvailability = async () => {
     try {
+      // First check if browser supports mediaDevices
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported in this browser');
+      }
+
+      // Check camera permissions
+      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+      if (permissionStatus.state === 'denied') {
+        throw new Error('Camera access denied. Please enable camera permissions in your browser settings.');
+      }
+
+      // Enumerate devices to check for cameras
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       
@@ -24,7 +37,7 @@ const QRCodeScanner = () => {
         throw new Error('No camera found on this device');
       }
 
-      // Check if we can access the camera
+      // Test camera access
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
@@ -36,18 +49,33 @@ const QRCodeScanner = () => {
       // Stop all tracks to clean up
       stream.getTracks().forEach(track => track.stop());
       
+      setHasCameraPermission(true);
       return true;
     } catch (err) {
       console.error('Camera check failed:', err);
-      setError(err.message || 'Camera access failed');
+      setError(getUserFriendlyError(err));
+      setHasCameraPermission(false);
       return false;
     }
+  };
+
+  // Convert technical errors to user-friendly messages
+  const getUserFriendlyError = (error) => {
+    if (error.name === 'NotAllowedError') {
+      return 'Camera access was denied. Please allow camera permissions to scan QR codes.';
+    } else if (error.name === 'NotFoundError') {
+      return 'No camera found on this device.';
+    } else if (error.name === 'NotSupportedError') {
+      return 'Your browser doesn\'t support camera access. Try using Chrome or Firefox.';
+    } else if (error.name === 'SecurityError') {
+      return 'Camera access is blocked for security reasons. Try accessing the site via HTTPS.';
+    }
+    return error.message || 'Failed to access camera. Please try again.';
   };
 
   const handleScanResult = (scannedText) => {
     if (!scannedText) return;
 
-    // Provide haptic feedback if available
     if ('vibrate' in navigator) {
       navigator.vibrate(100);
     }
@@ -76,7 +104,7 @@ const QRCodeScanner = () => {
 
   const handleScanError = (error) => {
     console.error("Scanner Error:", error);
-    setError(error.message || "Scanning failed. Please try again.");
+    setError(getUserFriendlyError(error));
     setIsScannerActive(false);
     setIsLoading(false);
   };
@@ -87,13 +115,16 @@ const QRCodeScanner = () => {
     
     try {
       const hasCamera = await checkCameraAvailability();
-      if (!hasCamera) return;
+      if (!hasCamera) {
+        setIsLoading(false);
+        return;
+      }
 
       setIsScannerActive(true);
       setIsLoading(false);
     } catch (err) {
       console.error('Scanner initialization failed:', err);
-      setError(err.message || 'Failed to initialize scanner');
+      setError(getUserFriendlyError(err));
       setIsLoading(false);
     }
   };
@@ -105,14 +136,10 @@ const QRCodeScanner = () => {
     }
   };
 
+  // Check camera on component mount
   useEffect(() => {
-    return () => {
-      // Cleanup when component unmounts
-      if (isScannerActive) {
-        setIsScannerActive(false);
-      }
-    };
-  }, [isScannerActive]);
+    checkCameraAvailability();
+  }, []);
 
   return (
     <div className="scanner-page-container">
@@ -121,12 +148,20 @@ const QRCodeScanner = () => {
       {error && (
         <div className="scanner-error">
           <p>{error}</p>
-          <button 
-            className="action-button secondary" 
-            onClick={() => setError(null)}
-          >
-            Try Again
-          </button>
+          <div className="scanner-error-actions">
+            <button 
+              className="action-button primary" 
+              onClick={startScanner}
+            >
+              Try Again
+            </button>
+            <button 
+              className="action-button secondary" 
+              onClick={() => navigate('/')}
+            >
+              Return to Home
+            </button>
+          </div>
         </div>
       )}
 
@@ -159,9 +194,13 @@ const QRCodeScanner = () => {
             }}
             styles={{
               container: {
-                borderRadius: '16px'
+                borderRadius: '16px',
+                width: '100%',
+                height: '100%'
               }
             }}
+            onStart={() => console.log('Scanner started')}
+            onStop={() => console.log('Scanner stopped')}
           />
           <div className="scanner-viewfinder"></div>
         </div>
@@ -172,7 +211,7 @@ const QRCodeScanner = () => {
           <button 
             className="action-button primary" 
             onClick={startScanner}
-            disabled={isLoading}
+            disabled={isLoading || !hasCameraPermission}
             aria-label="Start QR code scanning"
           >
             {isLoading ? 'Initializing...' : 'Start Scan'}
