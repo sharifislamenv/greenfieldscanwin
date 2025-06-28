@@ -14,15 +14,14 @@ const QRCodeScanner = () => {
   const scannerRef = useRef(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(false);
   const [scanAttempts, setScanAttempts] = useState(0);
+  const [isScanning, setIsScanning] = useState(false);
 
-  // Enhanced camera check
   const checkCameraAvailability = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera API not supported');
       }
 
-      // Try to get camera permission
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
@@ -31,11 +30,9 @@ const QRCodeScanner = () => {
         }
       });
 
-      // Check actual video track status
       const videoTrack = stream.getVideoTracks()[0];
       if (!videoTrack) throw new Error('No video track available');
 
-      // Clean up
       stream.getTracks().forEach(track => track.stop());
       
       setHasCameraPermission(true);
@@ -48,7 +45,6 @@ const QRCodeScanner = () => {
     }
   };
 
-  // Improved error messages
   const getUserFriendlyError = (error) => {
     switch(error.name) {
       case 'NotAllowedError':
@@ -66,10 +62,10 @@ const QRCodeScanner = () => {
     }
   };
 
-  // Enhanced scan handler
   const handleScanResult = (text, result) => {
-    if (!text) return;
+    if (!text || isScanning) return;
     
+    setIsScanning(true);
     console.log('Scan result:', { text, result });
     
     // Validate URL format
@@ -77,6 +73,7 @@ const QRCodeScanner = () => {
       setError('Invalid QR code format. Please scan a valid URL.');
       setScanAttempts(prev => prev + 1);
       if (scanAttempts >= 2) setIsScannerActive(false);
+      setIsScanning(false);
       return;
     }
 
@@ -95,10 +92,11 @@ const QRCodeScanner = () => {
     } catch (e) {
       console.error("URL parsing error:", e);
       setError("Couldn't process QR code data. Please try again.");
+    } finally {
+      setIsScanning(false);
     }
   };
 
-  // Start scanner with retry logic
   const startScanner = async () => {
     setIsLoading(true);
     setError(null);
@@ -117,7 +115,6 @@ const QRCodeScanner = () => {
     }
   };
 
-  // Toggle flash with safety check
   const toggleFlash = () => {
     if (scannerRef.current && scannerRef.current.torch !== undefined) {
       const newState = !hasFlash;
@@ -126,7 +123,6 @@ const QRCodeScanner = () => {
     }
   };
 
-  // Initialize on mount
   useEffect(() => {
     const init = async () => {
       await checkCameraAvailability();
@@ -192,10 +188,18 @@ const QRCodeScanner = () => {
               height: { ideal: 720 }
             }}
             options={{
-              delayBetweenScanAttempts: 500,
-              maxScansPerSecond: 5,
+              delayBetweenScanAttempts: 300,
+              maxScansPerSecond: 10,
               highlightScanRegion: true,
               highlightCodeOutline: true,
+              returnDetailedScanResult: true,
+              preferredCamera: 'environment',
+              scanRegion: {
+                x: 15,
+                y: 15,
+                width: 70,
+                height: 70
+              }
             }}
             styles={{
               container: {
@@ -223,13 +227,21 @@ const QRCodeScanner = () => {
             {isLoading ? 'Initializing...' : 'Start Scan'}
           </button>
         ) : (
-          <button 
-            className="action-button" 
-            onClick={toggleFlash}
-            disabled={isLoading}
-          >
-            {hasFlash ? 'Turn Off Flash' : 'Turn On Flash'}
-          </button>
+          <>
+            <button 
+              className="action-button" 
+              onClick={toggleFlash}
+              disabled={isLoading}
+            >
+              {hasFlash ? 'Turn Off Flash' : 'Turn On Flash'}
+            </button>
+            <button 
+              className="action-button secondary" 
+              onClick={() => setIsScannerActive(false)}
+            >
+              Stop Scanner
+            </button>
+          </>
         )}
         
         <button 
