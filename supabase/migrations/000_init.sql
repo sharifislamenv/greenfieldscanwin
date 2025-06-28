@@ -539,5 +539,38 @@ ON public.users
 FOR INSERT
 WITH CHECK (auth.uid() = id);
 
+--
+ALTER TABLE public.users
+ADD COLUMN IF NOT EXISTS scans_today INTEGER DEFAULT 0 NOT NULL;
+
+-- Drop the old, incorrect materialized view
+DROP MATERIALIZED VIEW IF EXISTS public.leaderboard;
+
+-- Create the new, correct view that reads directly from the users table
+CREATE MATERIALIZED VIEW public.leaderboard AS
+SELECT
+    id,
+    email,
+    points AS total_points, -- This now uses the correct points column from the users table
+    level,
+    badges
+FROM 
+    public.users
+ORDER BY 
+    total_points DESC;
+
+-- Re-create the unique index for the new view, which is required for concurrent refreshes
+CREATE UNIQUE INDEX IF NOT EXISTS leaderboard_unique_user_id_idx ON public.leaderboard(id);
+
+-- Drop the old triggers that were watching the wrong tables
+DROP TRIGGER IF EXISTS refresh_scan_leaderboard ON public.scans;
+DROP TRIGGER IF EXISTS refresh_share_leaderboard ON public.social_shares;
+DROP TRIGGER IF EXISTS refresh_referral_leaderboard ON public.referrals;
+
+-- Create a new, correct trigger that watches for changes to the 'points' column on the users table
+CREATE OR REPLACE TRIGGER on_user_points_change
+AFTER UPDATE OF points ON public.users
+FOR EACH ROW
+EXECUTE FUNCTION refresh_leaderboard();
 
 
