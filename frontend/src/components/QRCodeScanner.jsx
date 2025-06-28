@@ -1,241 +1,123 @@
 /* D:\MyProjects\greenfield-scanwin\frontend\src\components\QRCodeScanner.jsx */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import './QRCodeScanner.css';
 
 const QRCodeScanner = () => {
   const navigate = useNavigate();
   const [isScannerActive, setIsScannerActive] = useState(false);
-  const [hasFlash, setHasFlash] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [scanAttempts, setScanAttempts] = useState(0);
-  const scannerRef = useRef(null);
-  const html5QrCodeScanner = useRef(null);
-
-  const checkCameraAvailability = async () => {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera API not supported');
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      stream.getTracks().forEach(track => track.stop());
-      return true;
-    } catch (err) {
-      console.error('Camera check failed:', err);
-      setError(getUserFriendlyError(err));
-      return false;
-    }
-  };
-
-  const getUserFriendlyError = (error) => {
-    switch(error.name) {
-      case 'NotAllowedError':
-        return 'Camera access denied. Please enable camera permissions in your browser settings.';
-      case 'NotFoundError':
-        return 'No camera found. Please check your device.';
-      case 'NotSupportedError':
-        return 'Browser not supported. Try Chrome or Firefox.';
-      case 'OverconstrainedError':
-        return 'Camera requirements not met. Try different camera settings.';
-      case 'SecurityError':
-        return 'Camera blocked. Ensure you\'re on HTTPS.';
-      default:
-        return error.message || 'Camera access failed. Please try again.';
-    }
-  };
-
-  const handleScanResult = (decodedText, decodedResult) => {
-    if (!decodedText) return;
-    
-    console.log('Scan result:', { decodedText, decodedResult });
-    
-    // Validate URL format
-    if (!decodedText.startsWith('http') && !decodedText.startsWith('https')) {
-      setError('Invalid QR code format. Please scan a valid URL.');
-      setScanAttempts(prev => prev + 1);
-      if (scanAttempts >= 2) setIsScannerActive(false);
+  
+  // A ref to hold the scanner instance so we can call its methods
+  const html5QrCodeRef = useRef(null);
+  
+  // This useEffect hook is the core of the solution.
+  // It runs ONLY when 'isScannerActive' changes.
+  useEffect(() => {
+    // If the scanner should not be active, we do nothing.
+    if (!isScannerActive) {
       return;
     }
 
-    // Vibrate on success
-    if ('vibrate' in navigator) navigator.vibrate(100);
-
-    try {
-      const url = new URL(decodedText);
-      const dataParam = url.searchParams.get('d');
-      
-      if (dataParam) {
-        html5QrCodeScanner.current?.stop().then(() => {
-          navigate(`/scan?d=${encodeURIComponent(dataParam)}`);
-        });
-      } else {
-        setError('This QR code doesn\'t contain valid scan data.');
-      }
-    } catch (e) {
-      console.error("URL parsing error:", e);
-      setError("Couldn't process QR code data. Please try again.");
-    }
-  };
-
-  const handleScanError = (error) => {
-    if (!error.message.includes('NotFoundException')) {
-      console.error('Scanner error:', error);
-      setError(`Scanning failed: ${error.message || 'Please try again'}`);
-    }
-  };
-
-  const startScanner = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const hasCamera = await checkCameraAvailability();
-      if (!hasCamera) throw new Error('Camera not available');
-
-      if (html5QrCodeScanner.current) {
-        html5QrCodeScanner.current.clear();
-      }
-
-      html5QrCodeScanner.current = new Html5QrcodeScanner(
-        "qr-scanner-container",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true,
-          supportedScanTypes: [1] // Camera scan only
-        },
-        false
-      );
-
-      html5QrCodeScanner.current.render(
-        handleScanResult,
-        handleScanError
-      );
-
-      setIsScannerActive(true);
-      setScanAttempts(0);
-    } catch (err) {
-      console.error('Scanner start failed:', err);
-      setError(getUserFriendlyError(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleFlash = async () => {
-    if (html5QrCodeScanner.current) {
+    // This is an async function to start the camera scanning.
+    const startScanner = async () => {
       try {
-        const newState = !hasFlash;
-        await html5QrCodeScanner.current.applyVideoConstraints({
-          advanced: [{ torch: newState }]
-        });
-        setHasFlash(newState);
+        // Ensure we have a clean instance before starting.
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        
+        // Create a new instance of the scanner library.
+        html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
+        
+        const onScanSuccess = (decodedText) => {
+          handleScanResult(decodedText);
+        };
+        
+        const onScanFailure = (errorMessage) => {
+          // We can ignore the "NotFound" error which happens on every frame.
+        };
+
+        // Start the camera and scanning process.
+        await html5QrCodeRef.current.start(
+          { facingMode: "environment" }, // Request the rear camera
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          onScanSuccess,
+          onScanFailure
+        );
+
       } catch (err) {
-        console.error('Flash toggle failed:', err);
-        setError('Flash not supported on this device');
-      }
-    }
-  };
-
-  const stopScanner = () => {
-    if (html5QrCodeScanner.current) {
-      html5QrCodeScanner.current.clear().catch(err => {
-        console.error('Failed to stop scanner:', err);
-      });
-    }
-    setIsScannerActive(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (html5QrCodeScanner.current) {
-        html5QrCodeScanner.current.clear().catch(err => {
-          console.error('Failed to clean up scanner:', err);
-        });
+        console.error("Failed to start scanner:", err);
+        setError("Could not initialize camera. Please check browser permissions and refresh.");
+        setIsScannerActive(false); // Turn off on error
       }
     };
-  }, []);
+
+    startScanner();
+
+    // This is a cleanup function. It runs when the component is removed
+    // from the page or when the effect re-runs.
+    return () => {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(e => console.error("Failed to stop scanner on cleanup.", e));
+      }
+    };
+  }, [isScannerActive]); // The hook depends only on this state
+
+  const handleScanResult = (scannedText) => {
+    if (scannedText) {
+      setIsScannerActive(false); // Stop scanning on success
+      try {
+        const urlObject = new URL(scannedText);
+        const dataParam = urlObject.searchParams.get('d');
+        if (dataParam) {
+          navigate(`/scan?d=${dataParam}`);
+        } else {
+          setError("Invalid Greenfield QR Code: Data parameter missing.");
+        }
+      } catch (e) {
+        setError("Scanned code is not a valid URL.");
+      }
+    }
+  };
 
   return (
     <div className="scanner-page-container">
       <h2>Scan QR Code</h2>
-      
+
       {error && (
         <div className="scanner-error">
-          <p>{error}</p>
-          <div className="scanner-error-actions">
-            <button 
-              className="action-button primary" 
-              onClick={startScanner}
-            >
-              Try Again
-            </button>
-            <button 
-              className="action-button secondary" 
-              onClick={() => navigate('/')}
-            >
-              Return to Home
-            </button>
-          </div>
+            <p>{error}</p>
         </div>
       )}
 
-      {!error && !isScannerActive && (
+      {/* This container is now always in the DOM, but hidden until the scanner is active. */}
+      {/* This prevents the "HTML Element not found" error. */}
+      <div className="scanner-view-wrapper" style={{ display: isScannerActive ? 'block' : 'none' }}>
+        <div id="qr-scanner-container"></div>
+        <div className="scanner-viewfinder"></div>
+        <div className="scanner-hint">Align QR code within the frame</div>
+      </div>
+      
+      {!isScannerActive && !error && (
         <p>Click "Start Scan" to activate your camera.</p>
       )}
-
-      {isLoading && (
-        <div className="scanner-loading">
-          <div className="loading-spinner"></div>
-          <p>Initializing camera...</p>
-        </div>
-      )}
-
-      {isScannerActive && !isLoading && (
-        <div className="scanner-view-wrapper">
-          <div id="qr-scanner-container"></div>
-          <div className="scanner-viewfinder"></div>
-          <div className="scanner-hint">Align QR code within frame</div>
-        </div>
-      )}
+      
+      {isScannerActive && <p className="scanner-status">Looking for a QR code...</p>}
 
       <div className="scanner-actions">
         {!isScannerActive ? (
-          <button 
-            className="action-button primary" 
-            onClick={startScanner}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Initializing...' : 'Start Scan'}
+          <button className="action-button primary" onClick={() => { setError(null); setIsScannerActive(true); }}>
+            Start Scan
           </button>
         ) : (
-          <>
-            <button 
-              className="action-button" 
-              onClick={toggleFlash}
-              disabled={isLoading}
-            >
-              {hasFlash ? 'Turn Off Flash' : 'Turn On Flash'}
-            </button>
-            <button 
-              className="action-button secondary" 
-              onClick={stopScanner}
-            >
-              Stop Scanner
-            </button>
-          </>
+          <button className="action-button secondary" onClick={() => setIsScannerActive(false)}>
+            Stop Scanning
+          </button>
         )}
-        
-        <button 
-          className="action-button secondary" 
-          onClick={() => navigate('/')}
-        >
+        <button className="action-button secondary" onClick={() => navigate('/')}>
           Return to Home
         </button>
       </div>
