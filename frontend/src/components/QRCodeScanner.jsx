@@ -25,8 +25,8 @@ const QRCodeScanner = () => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         }
       });
 
@@ -178,28 +178,39 @@ const QRCodeScanner = () => {
             onResult={(text, result) => handleScanResult(text, result)}
             onError={(err) => {
               console.error('Scanner error:', err);
-              setError('Scanning failed. Please try again.');
+              setError(`Scanning failed: ${err.message}`);
               setIsScannerActive(false);
             }}
             torch={hasFlash}
             constraints={{
               facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
             }}
             options={{
-              delayBetweenScanAttempts: 300,
-              maxScansPerSecond: 10,
+              delayBetweenScanAttempts: 100,
+              maxScansPerSecond: 30,
               highlightScanRegion: true,
               highlightCodeOutline: true,
               returnDetailedScanResult: true,
               preferredCamera: 'environment',
               scanRegion: {
-                x: 15,
-                y: 15,
-                width: 70,
-                height: 70
-              }
+                x: 25,
+                y: 25,
+                width: 50,
+                height: 50
+              },
+              formatsToSupport: [
+                'qr_code',
+                'ean_13',
+                'ean_8',
+                'code_128',
+                'code_39',
+                'code_93',
+                'codabar',
+                'upc_a',
+                'upc_e'
+              ]
             }}
             styles={{
               container: {
@@ -208,6 +219,8 @@ const QRCodeScanner = () => {
                 position: 'relative'
               },
               video: {
+                width: '100%',
+                height: '100%',
                 objectFit: 'cover'
               }
             }}
