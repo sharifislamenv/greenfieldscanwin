@@ -5,57 +5,69 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
-  max-width: 700px;
-  margin: 40px auto;
+  padding: 20px;
+  max-width: 100%;
+  width: 100%;
+  min-height: 100vh;
   background: white;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .scanner-page-container h2 {
   color: #2c3e50;
   margin-bottom: 15px;
-  font-size: 2rem;
+  font-size: 1.8rem;
   text-align: center;
 }
 
 .scanner-page-container p {
   color: #4b5563;
-  font-size: 1.1rem;
-  margin-bottom: 30px;
+  font-size: 1rem;
+  margin-bottom: 20px;
   text-align: center;
+  max-width: 80%;
 }
 
 .scanner-view-wrapper {
   width: 100%;
-  max-width: 450px;
-  min-height: 300px;
-  aspect-ratio: 1/1;
-  border-radius: 16px;
+  max-width: 500px;
+  height: 70vh;
+  max-height: 500px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   position: relative;
-  border: 4px solid white;
   margin: 20px 0;
-  background: #f3f4f6;
+  background: #000;
 }
 
 .scanner-viewfinder {
   position: absolute;
-  top: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70%;
+  height: 70%;
+  border: 3px solid rgba(239, 68, 68, 0.7);
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.7);
+}
+
+.scanner-hint {
+  position: absolute;
+  bottom: 20px;
   left: 0;
   width: 100%;
-  height: 100%;
-  box-shadow: inset 0 0 0 5px rgba(239, 68, 68, 0.7);
-  border-radius: 12px;
-  pointer-events: none;
+  text-align: center;
+  color: white;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px;
 }
 
 .scanner-actions {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: 15px;
   margin-top: 20px;
   width: 100%;
   flex-wrap: wrap;
@@ -63,23 +75,18 @@
 
 .action-button {
   border: none;
-  padding: 15px 30px;
+  padding: 12px 25px;
   border-radius: 50px;
   font-size: 1rem;
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 180px;
+  transition: all 0.2s ease;
+  min-width: 160px;
 }
 
 .action-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-}
-
-.action-button:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .action-button.primary {
@@ -94,29 +101,29 @@
 }
 
 .action-button:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none !important;
 }
 
 .scanner-loading {
   width: 100%;
-  max-width: 450px;
-  min-height: 300px;
-  aspect-ratio: 1/1;
+  max-width: 500px;
+  height: 70vh;
+  max-height: 500px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 20px;
   background: #f3f4f6;
-  border-radius: 16px;
-  margin: 20px 0;
+  border-radius: 12px;
 }
 
 .loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 6px solid rgba(16, 185, 129, 0.2);
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(16, 185, 129, 0.2);
   border-top-color: #10b981;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -129,61 +136,40 @@
 .scanner-error {
   background: #fee2e2;
   color: #b91c1c;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 25px;
+  padding: 15px;
+  border-radius: 10px;
+  margin: 20px 0;
   text-align: center;
-  width: 100%;
+  width: 90%;
+  max-width: 500px;
 }
 
 .scanner-error p {
   color: #b91c1c;
   margin-bottom: 15px;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .scanner-error-actions {
   display: flex;
-  gap: 15px;
+  gap: 12px;
   justify-content: center;
-  margin-top: 15px;
-}
-
-.scanner-error button.primary {
-  background: #ef4444;
-  color: white;
-}
-
-.scanner-error button.primary:hover {
-  background: #dc2626;
 }
 
 @media (max-width: 600px) {
-  .scanner-page-container {
-    padding: 20px;
-    margin: 20px auto;
-  }
-  
   .scanner-view-wrapper,
   .scanner-loading {
-    max-width: 100%;
-    min-height: 250px;
+    height: 60vh;
   }
   
   .action-button {
-    padding: 12px 20px;
+    padding: 10px 20px;
     min-width: 140px;
     font-size: 0.9rem;
   }
 
   .scanner-actions,
   .scanner-error-actions {
-    gap: 12px;
-  }
-
-  .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border-width: 5px;
+    gap: 10px;
   }
 }

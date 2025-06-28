@@ -9,44 +9,33 @@ const QRCodeScanner = () => {
   const navigate = useNavigate();
   const [isScannerActive, setIsScannerActive] = useState(false);
   const [hasFlash, setHasFlash] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Start with loading false
-  const [scanHistory, setScanHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const scannerRef = useRef(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(false);
+  const [scanAttempts, setScanAttempts] = useState(0);
 
-  // Check camera capabilities and permissions
+  // Enhanced camera check
   const checkCameraAvailability = async () => {
     try {
-      // First check if browser supports mediaDevices
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera API not supported in this browser');
+        throw new Error('Camera API not supported');
       }
 
-      // Check camera permissions
-      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-      if (permissionStatus.state === 'denied') {
-        throw new Error('Camera access denied. Please enable camera permissions in your browser settings.');
-      }
-
-      // Enumerate devices to check for cameras
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      
-      if (videoDevices.length === 0) {
-        throw new Error('No camera found on this device');
-      }
-
-      // Test camera access
+      // Try to get camera permission
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 }
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       });
 
-      // Stop all tracks to clean up
+      // Check actual video track status
+      const videoTrack = stream.getVideoTracks()[0];
+      if (!videoTrack) throw new Error('No video track available');
+
+      // Clean up
       stream.getTracks().forEach(track => track.stop());
       
       setHasCameraPermission(true);
@@ -59,86 +48,96 @@ const QRCodeScanner = () => {
     }
   };
 
-  // Convert technical errors to user-friendly messages
+  // Improved error messages
   const getUserFriendlyError = (error) => {
-    if (error.name === 'NotAllowedError') {
-      return 'Camera access was denied. Please allow camera permissions to scan QR codes.';
-    } else if (error.name === 'NotFoundError') {
-      return 'No camera found on this device.';
-    } else if (error.name === 'NotSupportedError') {
-      return 'Your browser doesn\'t support camera access. Try using Chrome or Firefox.';
-    } else if (error.name === 'SecurityError') {
-      return 'Camera access is blocked for security reasons. Try accessing the site via HTTPS.';
+    switch(error.name) {
+      case 'NotAllowedError':
+        return 'Camera access denied. Please enable camera permissions in your browser settings.';
+      case 'NotFoundError':
+        return 'No camera found. Please check your device.';
+      case 'NotSupportedError':
+        return 'Browser not supported. Try Chrome or Firefox.';
+      case 'OverconstrainedError':
+        return 'Camera requirements not met. Try different camera settings.';
+      case 'SecurityError':
+        return 'Camera blocked. Ensure you\'re on HTTPS.';
+      default:
+        return error.message || 'Camera access failed. Please try again.';
     }
-    return error.message || 'Failed to access camera. Please try again.';
   };
 
-  const handleScanResult = (scannedText) => {
-    if (!scannedText) return;
-
-    if ('vibrate' in navigator) {
-      navigator.vibrate(100);
+  // Enhanced scan handler
+  const handleScanResult = (text, result) => {
+    if (!text) return;
+    
+    console.log('Scan result:', { text, result });
+    
+    // Validate URL format
+    if (!text.startsWith('http') && !text.startsWith('https')) {
+      setError('Invalid QR code format. Please scan a valid URL.');
+      setScanAttempts(prev => prev + 1);
+      if (scanAttempts >= 2) setIsScannerActive(false);
+      return;
     }
 
-    console.log(`Scan successful, raw text: ${scannedText}`);
-    setIsScannerActive(false);
-    setScanHistory(prev => [...prev, { 
-      text: scannedText, 
-      timestamp: new Date().toISOString() 
-    }]);
+    // Vibrate on success
+    if ('vibrate' in navigator) navigator.vibrate(100);
 
     try {
-      const urlObject = new URL(scannedText);
-      const dataParam = urlObject.searchParams.get('d');
+      const url = new URL(text);
+      const dataParam = url.searchParams.get('d');
       
       if (dataParam) {
-        navigate(`/scan?d=${dataParam}`);
+        navigate(`/scan?d=${encodeURIComponent(dataParam)}`);
       } else {
-        setError("This does not appear to be a valid Greenfield QR Code.");
+        setError('This QR code doesn\'t contain valid scan data.');
       }
     } catch (e) {
-      console.error("Scanned content is not a valid URL:", e);
-      setError("Scanned code is not a valid URL.");
+      console.error("URL parsing error:", e);
+      setError("Couldn't process QR code data. Please try again.");
     }
   };
 
-  const handleScanError = (error) => {
-    console.error("Scanner Error:", error);
-    setError(getUserFriendlyError(error));
-    setIsScannerActive(false);
-    setIsLoading(false);
-  };
-
+  // Start scanner with retry logic
   const startScanner = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
       const hasCamera = await checkCameraAvailability();
-      if (!hasCamera) {
-        setIsLoading(false);
-        return;
-      }
+      if (!hasCamera) throw new Error('Camera not available');
 
       setIsScannerActive(true);
-      setIsLoading(false);
+      setScanAttempts(0);
     } catch (err) {
-      console.error('Scanner initialization failed:', err);
+      console.error('Scanner start failed:', err);
       setError(getUserFriendlyError(err));
+    } finally {
       setIsLoading(false);
     }
   };
 
+  // Toggle flash with safety check
   const toggleFlash = () => {
-    if (scannerRef.current) {
-      scannerRef.current.torch = !hasFlash;
-      setHasFlash(!hasFlash);
+    if (scannerRef.current && scannerRef.current.torch !== undefined) {
+      const newState = !hasFlash;
+      scannerRef.current.torch = newState;
+      setHasFlash(newState);
     }
   };
 
-  // Check camera on component mount
+  // Initialize on mount
   useEffect(() => {
-    checkCameraAvailability();
+    const init = async () => {
+      await checkCameraAvailability();
+    };
+    init();
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop();
+      }
+    };
   }, []);
 
   return (
@@ -180,29 +179,37 @@ const QRCodeScanner = () => {
         <div className="scanner-view-wrapper">
           <Scanner
             ref={scannerRef}
-            onResult={(text) => handleScanResult(text)}
-            onError={handleScanError}
+            onResult={(text, result) => handleScanResult(text, result)}
+            onError={(err) => {
+              console.error('Scanner error:', err);
+              setError('Scanning failed. Please try again.');
+              setIsScannerActive(false);
+            }}
             torch={hasFlash}
             constraints={{
               facingMode: 'environment',
-              width: { min: 640, ideal: 1280, max: 1920 },
-              height: { min: 480, ideal: 720, max: 1080 }
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
             }}
-            components={{
-              audio: false,
-              tracker: false,
+            options={{
+              delayBetweenScanAttempts: 500,
+              maxScansPerSecond: 5,
+              highlightScanRegion: true,
+              highlightCodeOutline: true,
             }}
             styles={{
               container: {
-                borderRadius: '16px',
                 width: '100%',
-                height: '100%'
+                height: '100%',
+                position: 'relative'
+              },
+              video: {
+                objectFit: 'cover'
               }
             }}
-            onStart={() => console.log('Scanner started')}
-            onStop={() => console.log('Scanner stopped')}
           />
           <div className="scanner-viewfinder"></div>
+          <div className="scanner-hint">Align QR code within frame</div>
         </div>
       )}
 
@@ -211,8 +218,7 @@ const QRCodeScanner = () => {
           <button 
             className="action-button primary" 
             onClick={startScanner}
-            disabled={isLoading || !hasCameraPermission}
-            aria-label="Start QR code scanning"
+            disabled={isLoading}
           >
             {isLoading ? 'Initializing...' : 'Start Scan'}
           </button>
@@ -229,7 +235,6 @@ const QRCodeScanner = () => {
         <button 
           className="action-button secondary" 
           onClick={() => navigate('/')}
-          aria-label="Return to home page"
         >
           Return to Home
         </button>
