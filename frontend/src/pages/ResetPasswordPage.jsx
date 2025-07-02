@@ -1,10 +1,9 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\ResetPasswordPage.jsx
 
-// frontend/src/pages/ResetPasswordPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import './AuthPage.css'; // Reusing auth styles
+import './AuthPage.css'; // Reusing auth styles for consistency
 
 const ResetPasswordPage = () => {
   const [newPassword, setNewPassword] = useState('');
@@ -15,33 +14,32 @@ const ResetPasswordPage = () => {
 
   // This hook runs once when the component loads to verify the token from the URL.
   useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'PASSWORD_RECOVERY') {
-      setIsTokenValid(true);
-      setLoading(false);
-    }
-  });
-
-  return () => {
-    subscription?.unsubscribe();
-  };
-  }, []);
-
-    // A fallback timer in case the event doesn't fire (e.g., bad link).
-    const timer = setTimeout(() => {
-      if (loading) {
+    // Supabase client automatically detects the session info from the URL hash.
+    // We listen for the PASSWORD_RECOVERY event which fires after a successful verification.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery mode entered. User is authenticated.');
+        setIsTokenValid(true);
         setLoading(false);
-        if (!isTokenValid) {
-          setMessage({ type: 'error', text: 'Invalid or expired password reset link.' });
-        }
       }
+    });
+
+    // A fallback timer in case the event doesn't fire (e.g., bad or expired link).
+    const timer = setTimeout(() => {
+        if (loading) {
+            setLoading(false);
+            if (!isTokenValid) {
+                setMessage({ type: 'error', text: 'Invalid or expired password reset link.' });
+            }
+        }
     }, 4000);
 
+    // Cleanup the listener when the component unmounts
     return () => {
       subscription?.unsubscribe();
       clearTimeout(timer);
     };
-  }, []); // Run only once on component mount
+  }, []); // The empty array [] ensures this runs only once
 
   const handleSetNewPassword = async (e) => {
     e.preventDefault();
@@ -49,13 +47,23 @@ const ResetPasswordPage = () => {
       setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
       return;
     }
+
     setLoading(true);
     setMessage({ type: '', text: '' });
+
     try {
+      // The user is already authenticated via the token, so we can update the password.
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      setMessage({ type: 'success', text: 'Password updated successfully! Redirecting to login...' });
+      
+      setMessage({ 
+        type: 'success', 
+        text: 'Password updated successfully! Redirecting to login...' 
+      });
+
+      // Redirect to the login page after a short delay
       setTimeout(() => navigate('/auth'), 3000);
+
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -63,10 +71,12 @@ const ResetPasswordPage = () => {
     }
   };
 
+  // Render a loading state while verifying the link
   if (loading) {
     return <div className="auth-page"><h2>Verifying link...</h2></div>;
   }
   
+  // Render an error state if the link was invalid
   if (!isTokenValid) {
     return (
         <div className="auth-page">
@@ -79,16 +89,35 @@ const ResetPasswordPage = () => {
     );
   }
 
+  // Render the password update form if the link was valid
   return (
     <div className="auth-page">
       <h2>Set a New Password</h2>
-      {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
+      
+      {message.text && (
+        <div className={`auth-message ${message.type}`}>
+          {message.text}
+        </div>
+      )}
+      
       <form onSubmit={handleSetNewPassword}>
         <div className="form-group">
           <label>New Password</label>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength="6" />
+          <input 
+            type="password"
+            placeholder="Enter your new password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength="6"
+          />
         </div>
-        <button type="submit" className="auth-button" disabled={loading}>
+        
+        <button 
+          type="submit" 
+          className="auth-button"
+          disabled={loading}
+        >
           {loading ? 'Updating...' : 'Update Password'}
         </button>
       </form>
