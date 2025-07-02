@@ -500,7 +500,7 @@ const HomePage = () => {
                     </p>
                     <p className="password-reset">
                       Forgot password?{' '}
-                      <button onClick={() => navigate('/reset')}>Reset Password</button>
+                      <button onClick={() => navigate('/reset-password')}>Reset Password</button>
                     </p>
                   </>
                 ) : (
