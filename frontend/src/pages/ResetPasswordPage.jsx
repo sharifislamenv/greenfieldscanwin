@@ -15,15 +15,17 @@ const ResetPasswordPage = () => {
 
   // This hook runs once when the component loads to verify the token from the URL.
   useEffect(() => {
-    // Supabase client automatically detects the token in the URL hash.
-    // We listen for the PASSWORD_RECOVERY event which fires after a successful verification.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        console.log('Password recovery mode entered. User is authenticated.');
-        setIsTokenValid(true);
-        setLoading(false);
-      }
-    });
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      setIsTokenValid(true);
+      setLoading(false);
+    }
+  });
+
+  return () => {
+    subscription?.unsubscribe();
+  };
+  }, []);
 
     // A fallback timer in case the event doesn't fire (e.g., bad link).
     const timer = setTimeout(() => {
