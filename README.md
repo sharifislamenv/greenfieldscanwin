@@ -1,6 +1,6 @@
-# Greenfield Scan and Win Application
+# Greenfield ScanWin Application
 
-This project is a complete "Scan and Win" campaign application, featuring a QR code generator backend built with Python and a user-facing frontend built with React and Supabase.
+This project is a complete "ScanWin" campaign application, featuring a QR code generator backend built with Python and a user-facing frontend built with React and Supabase.
 
 ## Project Components
 * **/qr_generator**: Contains the Python scripts for generating unique and secure QR codes.
