@@ -1,7 +1,8 @@
-// src/contexts/CampaignContext.jsx
+// src/contexts/CampaignContext.js
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { CampaignService } from '../services/campaignService';
+//import { CampaignService } from '../services/campaignService';
+import { CampaignService } from '../services/CampaignService';
 
 const CampaignContext = createContext();
 

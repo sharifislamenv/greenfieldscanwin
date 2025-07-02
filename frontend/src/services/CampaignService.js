@@ -1,4 +1,5 @@
 // src/services/campaignService.js
+
 import { supabase } from '../supabaseClient';
 
 export const CampaignService = {

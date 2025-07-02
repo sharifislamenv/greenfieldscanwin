@@ -1,6 +1,7 @@
 // src/pages/CampaignDetailsPage.jsx
 
-import CampaignService from '../services/campaignService';
+import { CampaignService } from '../services/CampaignService';
+//import CampaignService from '../services/campaignService';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCampaigns } from '../contexts/CampaignContext';
