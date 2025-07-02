@@ -138,9 +138,21 @@ const UserProfile = () => {
     }
   };
 
-  const handleLogout = async () => {
+  /*const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
+  };*/
+
+  const handleLogout = async () => {
+  try {
+    window.localStorage.removeItem('sb-data');
+    window.localStorage.removeItem(`sb-${supabase.supabaseUrl}-auth-token`);
+    await supabase.auth.signOut();
+    window.location.href = '/auth';
+  } catch (error) {
+    console.error('Logout error:', error);
+    setMessage({ type: 'error', text: 'Failed to logout. Please try again.' });
+  }
   };
 
   if (isLoading) {

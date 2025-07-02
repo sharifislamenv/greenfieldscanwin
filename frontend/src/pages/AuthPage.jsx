@@ -14,6 +14,10 @@ const AuthPage = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const navigate = useNavigate();
 
+  const validateEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -23,65 +27,59 @@ const AuthPage = () => {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        
+        window.localStorage.removeItem('sb-data');
         setMessage({ type: 'success', text: 'Login successful! Redirecting...' });
         setTimeout(() => navigate('/'), 1500);
       } else if (mode === 'signup') {
-        if (password !== confirmPassword) {
-          throw new Error('Passwords do not match');
-        }
-        if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters');
-        }
+        if (!validateEmail(email)) throw new Error('Please enter a valid email address');
+        if (password !== confirmPassword) throw new Error('Passwords do not match');
+        if (password.length < 6) throw new Error('Password must be at least 6 characters');
         
-        // Create user with additional metadata
         const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: {
-              points: 0,
-              level: 1,
-              badges: []
-            }
+            data: { points: 0, level: 1 }
           }
         });
         
         if (error) throw error;
         
-        // Create user profile in public.users table
         if (data.user) {
-          await supabase
-            .from('users')
-            .insert([{
-              id: data.user.id,
-              email: data.user.email,
-              points: 0,
-              level: 1,
-              badges: [],
-              scans_today: 0
-            }]);
+          try {
+            await supabase
+              .from('users')
+              .upsert({
+                id: data.user.id,
+                email: data.user.email,
+                points: 0,
+                level: 1,
+                badges: [],
+                scans_today: 0
+              });
+          } catch (upsertError) {
+            console.error('Profile upsert error:', upsertError);
+          }
         }
         
-        setMessage({ 
-          type: 'success', 
-          text: `Success! Please check ${email} to confirm your account.` 
-        });
+        setMessage({ type: 'success', text: `Success! Please check ${email} to confirm your account.` });
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
       }
     } catch (error) {
       console.error('Authentication error:', error);
       let errorMsg = error.message;
       
       if (error.message.includes('User already registered')) {
-        errorMsg = 'An account with this email already exists.';
+        errorMsg = 'An account with this email already exists. Please login instead.';
       } else if (error.message.includes('Database error')) {
         errorMsg = 'We encountered an issue creating your account. Please try again.';
       }
       
-      setMessage({ 
-        type: 'error', 
-        text: errorMsg
-      });
+      setMessage({ type: 'error', text: errorMsg });
     } finally {
       setLoading(false);
     }
@@ -93,7 +91,7 @@ const AuthPage = () => {
       return;
     }
     
-    if (!email.includes('@') || !email.includes('.')) {
+    if (!validateEmail(email)) {
       setMessage({ type: 'error', text: 'Please enter a valid email address' });
       return;
     }
@@ -106,11 +104,7 @@ const AuthPage = () => {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
-      
-      setMessage({ 
-        type: 'success', 
-        text: 'Password reset email sent! Check your inbox.' 
-      });
+      setMessage({ type: 'success', text: 'Password reset email sent! Check your inbox.' });
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -121,9 +115,7 @@ const AuthPage = () => {
   return (
     <div className="auth-page">
       <div className="auth-container">
-        <h2>
-          {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
-        </h2>
+        <h2>{mode === 'login' ? 'Welcome Back' : 'Create Your Account'}</h2>
         <p className="auth-subtitle">
           {mode === 'login' 
             ? 'Login to access your rewards and scanning history' 

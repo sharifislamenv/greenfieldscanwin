@@ -1,3 +1,5 @@
+-- D:\MyProjects\greenfield-scanwin\supabase\migrations\000_init.sql
+
 -- Enable PostGIS
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -572,5 +574,44 @@ CREATE OR REPLACE TRIGGER on_user_points_change
 AFTER UPDATE OF points ON public.users
 FOR EACH ROW
 EXECUTE FUNCTION refresh_leaderboard();
+
+--
+-- Update user handling function
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, points, level, badges, scans_today)
+  VALUES (NEW.id, NEW.email, 0, 1, '{}', 0)
+  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
+  
+  REFRESH MATERIALIZED VIEW CONCURRENTLY leaderboard;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Recreate trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_new_user();
+
+-- Add RLS policies if they don't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow users to insert their own profile') THEN
+    CREATE POLICY "Allow users to insert their own profile" 
+    ON public.users 
+    FOR INSERT 
+    WITH CHECK (auth.uid() = id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow users to update their own profile') THEN
+    CREATE POLICY "Allow users to update their own profile"
+    ON public.users
+    FOR UPDATE
+    USING (auth.uid() = id);
+  END IF;
+END $$;
 
 

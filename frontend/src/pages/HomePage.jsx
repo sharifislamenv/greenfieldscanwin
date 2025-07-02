@@ -249,12 +249,30 @@ const HomePage = () => {
     }
   };
 
-  // Handle logout
+  /* Handle logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setUserStats({ points: 0, level: 1, badges: [], scansToday: 0 });
     setAuthSuccess('You have been logged out');
+  };*/
+  // Handle logout
+  const handleLogout = async () => {
+  try {
+    // Clear all Supabase-related cache
+    window.localStorage.removeItem('sb-data');
+    window.localStorage.removeItem(`sb-${supabase.supabaseUrl}-auth-token`);
+    
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    
+    // Force refresh to ensure clean state
+    window.location.href = '/auth';
+  } catch (error) {
+    console.error('Logout error:', error);
+    setAuthError('Failed to logout. Please try again.');
+  }
   };
 
   // Handle scanning
