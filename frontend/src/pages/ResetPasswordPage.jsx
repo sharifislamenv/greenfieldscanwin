@@ -3,67 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import './AuthPage.css'; // Reusing auth styles for consistency
+import './AuthPage.css';
 
 const ResetPasswordPage = () => {
+  const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [isTokenValid, setIsTokenValid] = useState(false);
+  const [showUpdateForm, setShowUpdateForm] = useState(false);
   const navigate = useNavigate();
 
-  // This hook runs once when the component loads to verify the token from the URL.
   useEffect(() => {
-    // Supabase client automatically detects the session info from the URL hash.
-    // We listen for the PASSWORD_RECOVERY event which fires after a successful verification.
+    // This listener detects when Supabase has verified a user from a recovery link
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        console.log('Password recovery mode entered. User is authenticated.');
-        setIsTokenValid(true);
-        setLoading(false);
+        setShowUpdateForm(true);
       }
     });
+    setLoading(false); // Assume no token initially, show the email form
 
-    // A fallback timer in case the event doesn't fire (e.g., bad or expired link).
-    const timer = setTimeout(() => {
-        if (loading) {
-            setLoading(false);
-            if (!isTokenValid) {
-                setMessage({ type: 'error', text: 'Invalid or expired password reset link.' });
-            }
-        }
-    }, 4000);
+    return () => subscription?.unsubscribe();
+  }, []);
 
-    // Cleanup the listener when the component unmounts
-    return () => {
-      subscription?.unsubscribe();
-      clearTimeout(timer);
-    };
-  }, []); // The empty array [] ensures this runs only once
-
-  const handleSetNewPassword = async (e) => {
+  const handlePasswordResetRequest = async (e) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
-      return;
-    }
-
     setLoading(true);
     setMessage({ type: '', text: '' });
-
     try {
-      // The user is already authenticated via the token, so we can update the password.
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      
-      setMessage({ 
-        type: 'success', 
-        text: 'Password updated successfully! Redirecting to login...' 
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://greenfieldscanwin.vercel.app/reset',
       });
-
-      // Redirect to the login page after a short delay
-      setTimeout(() => navigate('/auth'), 3000);
-
+      if (error) throw error;
+      setMessage({ type: 'success', text: 'Password reset email sent! Please check your inbox.' });
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -71,56 +42,66 @@ const ResetPasswordPage = () => {
     }
   };
 
-  // Render a loading state while verifying the link
+  const handleSetNewPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setMessage({ type: 'success', text: 'Password updated successfully! Redirecting to login...' });
+      setTimeout(() => navigate('/auth'), 3000);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
-    return <div className="auth-page"><h2>Verifying link...</h2></div>;
+    return <div className="auth-page"><h2>Loading...</h2></div>;
   }
   
-  // Render an error state if the link was invalid
-  if (!isTokenValid) {
+  // If user has arrived from a valid email link, show the update form
+  if (showUpdateForm) {
     return (
-        <div className="auth-page">
-            <h2>Invalid Link</h2>
-            {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
-            <div className="auth-switch">
-                <p><button onClick={() => navigate('/auth')}>Return to Login</button></p>
-            </div>
-        </div>
+      <div className="auth-page">
+        <h2>Set a New Password</h2>
+        {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
+        <form onSubmit={handleSetNewPassword}>
+          <div className="form-group">
+            <label>New Password</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength="6" />
+          </div>
+          <button type="submit" className="auth-button" disabled={loading}>
+            {loading ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
     );
   }
 
-  // Render the password update form if the link was valid
+  // Otherwise, show the form to request a reset email
   return (
     <div className="auth-page">
-      <h2>Set a New Password</h2>
-      
-      {message.text && (
-        <div className={`auth-message ${message.type}`}>
-          {message.text}
-        </div>
-      )}
-      
-      <form onSubmit={handleSetNewPassword}>
+      <h2>Reset Password</h2>
+      <p>Enter your email address to receive a password reset link.</p>
+      {message.text && <div className={`auth-message ${message.type}`}>{message.text}</div>}
+      <form onSubmit={handlePasswordResetRequest}>
         <div className="form-group">
-          <label>New Password</label>
-          <input 
-            type="password"
-            placeholder="Enter your new password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength="6"
-          />
+          <label>Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </div>
-        
-        <button 
-          type="submit" 
-          className="auth-button"
-          disabled={loading}
-        >
-          {loading ? 'Updating...' : 'Update Password'}
+        <button type="submit" className="auth-button" disabled={loading}>
+          {loading ? 'Sending...' : 'Send Reset Link'}
         </button>
       </form>
+      <div className="auth-switch">
+        <p><button onClick={() => navigate('/auth')}>Return to Login</button></p>
+      </div>
     </div>
   );
 };
