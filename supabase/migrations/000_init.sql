@@ -741,3 +741,128 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
+  --
+  -- Step 1: Forcefully drop the old function AND the trigger that depends on it.
+-- Using CASCADE ensures that both the function and its dependent trigger are removed.
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
+-- Step 2: Create the new, robust function.
+-- This version is more explicit, providing default values directly in the INSERT statement,
+-- which is a more stable pattern that prevents potential data type mismatches.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, points, level, badges, scans_today)
+  VALUES (NEW.id, NEW.email, 0, 1, '{}', 0);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Step 3: Recreate the trigger, now correctly linked to the new, robust function.
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
+  --
+  INSERT INTO public.campaigns (
+  name, 
+  description, 
+  type, 
+  start_date, 
+  end_date, 
+  rules, 
+  reward,
+  is_active
+) VALUES (
+  'ShortStopSinclar 65 cents off per gallon of gas',
+  'Bring store receipt (10 cents off), scan from Sinclair App (25 cents off), Scan Greenfield QR Code (65 cents off) and receive up to $1 off per gallon of gas up to 30 gallons.',
+  'seasonal', -- Using allowed type with subtype in rules
+  '2025-07-17 00:00:00-06', -- Denver Time (MST/MDT)
+  '2025-08-16 23:59:59-06', -- Denver Time (MST/MDT)
+  '{
+    "change_region": "Store",
+    "store": "ShortStopSinclair",
+    "required_scans": 1,
+    "time_limit_minutes": 30,
+    "campaign_subtype": "scanwin_discount",
+    "max_discount_per_gallon": "$1",
+    "max_gallons": 30
+  }',
+  '{
+    "discount_voucher": "Greenfield QR Code",
+    "value": "65 cents",
+    "value_type": "per_gallon",
+    "application_method": "scanned_at_POS",
+    "combinable": true,
+    "stackable_discounts": [
+      {"source": "store_receipt", "value": "10 cents"},
+      {"source": "sinclair_app", "value": "25 cents"}
+    ]
+  }',
+  true
+);
+
+--
+INSERT INTO public.campaigns (
+  name, 
+  description, 
+  type, 
+  start_date, 
+  end_date, 
+  rules, 
+  reward
+) VALUES (
+  'Greenfield Lighting - Winner Winner Chicken Dinner',
+  'Scan QR Code and receive 5 points',
+  'global_quest',
+  '2025-07-03 00:00:00-06', -- Denver Time (UTC-6)
+  '2025-07-07 23:59:59-06', -- Denver Time (UTC-6)
+  '{
+    "change_region": "Store",
+    "store": "Greenfield Lighting",
+    "required_scans": 4,
+    "time_limit_days": 5,
+    "scan_limit": "1 per day",
+    "campaign_subtype": "scanwin_points"
+  }',
+  '{
+    "reward_type": "points",
+    "description": "Leaderboard winner of 4 or more scans in 5 days",
+    "value": 1000,
+    "currency": "Greenfield Points",
+    "base_points_per_scan": 5
+  }'
+);
+
+--
+INSERT INTO public.campaigns (
+  name, 
+  description, 
+  type, 
+  start_date, 
+  end_date, 
+  rules, 
+  reward
+) VALUES (
+  'ShortStopSinclar $100 gas coupon',
+  'Bring store receipt (10 cents off), scan from Sinclair App (25 cents off), Scan Greenfield QR Code (65 cents off) and receive up to $1 off per gallon of gas up to 30 gallons.',
+  'seasonal',
+  '2025-07-17 00:00:00-06', -- Denver Time (UTC-6)
+  '2025-08-16 23:59:59-06', -- Denver Time (UTC-6)
+  '{
+    "change_region": "Store",
+    "store": "ShortStopSinclair",
+    "required_scans": 4,
+    "time_limit_days": 30,
+    "campaign_subtype": "scanwin_discount"
+  }',
+  '{
+    "discount_voucher": "Greenfield QR Code",
+    "value": "$100",
+    "value_type": "gas_coupon",
+    "max_gallons": 30,
+    "max_discount_per_gallon": "$1"
+  }'
+);
+

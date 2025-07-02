@@ -1,7 +1,10 @@
 // D:\MyProjects\greenfield-scanwin\frontend\src\App.js
 
+// src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { CampaignProvider } from './contexts/CampaignContext';
+import { UserProvider } from './contexts/UserContext';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
 import ScanPage from './pages/ScanPage';
@@ -9,22 +12,32 @@ import UserProfile from './pages/UserProfile';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import NotFound from './components/NotFound';
-import QRCodeScanner from './components/QRCodeScanner'; // --- NEW: Import the scanner component ---
+import QRCodeScanner from './components/QRCodeScanner';
+import CampaignsPage from './pages/CampaignsPage';
+import CampaignDetailsPage from './pages/CampaignDetailsPage';
+import CampaignManager from './components/CampaignManager';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/reset" element={<ResetPasswordPage />} />
-        <Route path="/start-scan" element={<QRCodeScanner />} /> {/* --- NEW: Add the route for the camera page --- */}
-        <Route path="/scan" element={<ScanPage />} />
-        <Route path="/profile" element={<UserProfile />} />
-        <Route path="/dashboard" element={<AnalyticsDashboard />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
+    <UserProvider>
+      <CampaignProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset" element={<ResetPasswordPage />} />
+            <Route path="/start-scan" element={<QRCodeScanner />} />
+            <Route path="/scan" element={<ScanPage />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/dashboard" element={<AnalyticsDashboard />} />
+            <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/campaigns/:id" element={<CampaignDetailsPage />} />
+            <Route path="/manage-campaigns" element={<CampaignManager />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+      </CampaignProvider>
+    </UserProvider>
   );
 }
 

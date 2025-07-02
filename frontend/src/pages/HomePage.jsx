@@ -1,15 +1,21 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
 
-import React, { useState, useEffect } from 'react';
+// src/pages/HomePage.jsx
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { useCampaigns } from '../contexts/CampaignContext';
+import { useUser } from '../contexts/UserContext';
 import { FacebookShareButton, TwitterShareButton, WhatsappShareButton } from 'react-share';
 import Chart from 'react-apexcharts';
+import CampaignCard from '../components/CampaignCard';
 import './HomePage.css';
 
 const HomePage = () => {
+  const navigate = useNavigate();
+  const { user, userStats, handleLogout } = useUser();
+  const { featuredCampaigns, activeCampaigns, isLoading: campaignsLoading } = useCampaigns();
+  
   // Authentication states
-  const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,17 +25,10 @@ const HomePage = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   
   // App states
-  const [userStats, setUserStats] = useState({ 
-    points: 0, 
-    level: 1, 
-    badges: [],
-    scansToday: 0
-  });
-  
-  const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
+  const [scanStatus, setScanStatus] = useState('idle');
   
   const [analytics, setAnalytics] = useState({ 
     scans: 0, 
@@ -57,9 +56,6 @@ const HomePage = () => {
       ]
     }
   });
-  
-  const [scanStatus, setScanStatus] = useState('idle');
-  const navigate = useNavigate();
 
   // Check for existing session on mount
   useEffect(() => {
@@ -83,49 +79,12 @@ const HomePage = () => {
     checkSession();
   }, []);
 
-  // Fetch user data when authenticated
-  const fetchUserData = async (userId) => {
-    try {
-      const { data: stats, error } = await supabase
-        .from('users')
-        .select('points, level, badges, scans_today')
-        .eq('id', userId)
-        .single();
-      
-      if (error) throw error;
-
-      if (stats) {
-        setUserStats({
-          points: stats.points || 0,
-          level: stats.level || 1,
-          badges: stats.badges || [],
-          scansToday: stats.scans_today || 0
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setDataError('Failed to load user data');
-    }
-  };
-
   // Fetch public data regardless of auth state
   useEffect(() => {
     const fetchPublicData = async () => {
       try {
         setIsLoading(true);
         setDataError(null);
-        const today = new Date().toISOString();
-        
-        // Active campaigns (current date between start and end dates)
-        const { data: campaigns, error: campaignsError } = await supabase
-          .from('campaigns')
-          .select('*')
-          .lte('start_date', today)
-          .gte('end_date', today)
-          .order('end_date', { ascending: true });
-        
-        if (campaignsError) throw campaignsError;
-        setActiveCampaigns(campaigns || []);
         
         // Leaderboard - use the materialized view directly
         const { data: leaderboardData, error: leaderboardError } = await supabase
@@ -180,7 +139,6 @@ const HomePage = () => {
         console.error('Error fetching public data:', error);
         setDataError('Failed to load public data');
         // Set default/empty values if there's an error
-        setActiveCampaigns([]);
         setLeaderboard([]);
         setAnalytics(prev => ({
           ...prev,
@@ -203,79 +161,6 @@ const HomePage = () => {
     fetchPublicData();
   }, []);
 
-  // Handle authentication
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setIsAuthLoading(true);
-    setAuthError('');
-    setAuthSuccess('');
-
-    try {
-      // Form validation
-      if (authMode === 'signup' && password !== confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
-
-      if (authMode === 'login') {
-        // Login user
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        
-        setAuthSuccess('Login successful!');
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-        await fetchUserData(user.id);
-      } else {
-        // Sign up user
-        const { data, error } = await supabase.auth.signUp({ 
-          email, 
-          password,
-          options: {
-            data: {
-              points: 0,
-              level: 1
-            }
-          }
-        });
-        if (error) throw error;
-        
-        setAuthSuccess(`Success! Check ${email} for confirmation.`);
-        setAuthMode('login');
-      }
-    } catch (error) {
-      setAuthError(error.message);
-    } finally {
-      setIsAuthLoading(false);
-    }
-  };
-
-  /* Handle logout
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setUserStats({ points: 0, level: 1, badges: [], scansToday: 0 });
-    setAuthSuccess('You have been logged out');
-  };*/
-  // Handle logout
-  const handleLogout = async () => {
-  try {
-    // Clear all Supabase-related cache
-    window.localStorage.removeItem('sb-data');
-    window.localStorage.removeItem(`sb-${supabase.supabaseUrl}-auth-token`);
-    
-    // Sign out from Supabase
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    
-    // Force refresh to ensure clean state
-    window.location.href = '/auth';
-  } catch (error) {
-    console.error('Logout error:', error);
-    setAuthError('Failed to logout. Please try again.');
-  }
-  };
-
-  // Handle scanning
   const handleStartScanning = () => {
     navigate('/start-scan');
   };
@@ -345,32 +230,7 @@ const HomePage = () => {
     );
   };
 
-  const renderCampaignCard = (campaign) => (
-    <div key={campaign.id} className="campaign-card">
-      <div className={`campaign-badge ${campaign.type.toLowerCase()}`}>
-        {campaign.type}
-      </div>
-      <h3>{campaign.name}</h3>
-      <p>{campaign.description}</p>
-      <div className="campaign-dates">
-        {new Date(campaign.start_date).toLocaleDateString()} -{' '}
-        {new Date(campaign.end_date).toLocaleDateString()}
-      </div>
-      <div className="campaign-reward">
-        Reward: {campaign.reward.value} {campaign.reward.type}
-      </div>
-      {user && (
-        <button 
-          className="campaign-button"
-          onClick={() => navigate(`/campaign/${campaign.id}`)}
-        >
-          View Details
-        </button>
-      )}
-    </div>
-  );
-
-  if (isLoading) {
+  if (isLoading || campaignsLoading) {
     return (
       <div className="loading-screen">
         <div className="spinner"></div>
@@ -627,7 +487,32 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Campaigns Section */}
+      {/* Featured Campaigns Section */}
+      {featuredCampaigns.length > 0 && (
+        <div className="campaigns-section">
+          <div className="section-header">
+            <h2>Featured Campaigns</h2>
+            <button 
+              className="view-all"
+              onClick={() => navigate('/campaigns')}
+            >
+              View All Campaigns
+            </button>
+          </div>
+          <div className="campaigns-grid">
+            {featuredCampaigns.map(campaign => (
+              <CampaignCard 
+                key={campaign.id} 
+                campaign={campaign} 
+                isClickable={true}
+                size="medium"
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active Campaigns Section */}
       <div className="campaigns-section">
         <div className="section-header">
           <h2>Active Campaigns</h2>
@@ -645,7 +530,14 @@ const HomePage = () => {
         )}
         <div className="campaigns-grid">
           {activeCampaigns.length > 0 ? (
-            activeCampaigns.slice(0, 3).map(renderCampaignCard)
+            activeCampaigns.slice(0, 3).map(campaign => (
+              <CampaignCard 
+                key={campaign.id} 
+                campaign={campaign} 
+                isClickable={true}
+                size="medium"
+              />
+            ))
           ) : (
             <p>No active campaigns at the moment. Check back soon!</p>
           )}
