@@ -1,7 +1,8 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
 
 import { useState } from 'react';
-import supabase from '../config/supabaseClient'; // or your supabase initialization path
+//import supabase from '../config/supabaseClient'; // or your supabase initialization path
+import supabase from '../supabaseClient';
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCampaigns } from '../contexts/CampaignContext';
