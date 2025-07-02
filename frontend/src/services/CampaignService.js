@@ -1,4 +1,4 @@
-// D:\MyProjects\greenfield-scanwin\frontend\src\services\campaignService.jsx
+// D:\MyProjects\greenfield-scanwin\frontend\src\services\CampaignService.js
 
 
 import { supabase } from '../supabaseClient';
