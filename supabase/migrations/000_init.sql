@@ -696,4 +696,48 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
+  --
+  -- Step 1: Forcefully drop the old function and its dependent trigger.
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
+-- Step 2: Create the new, robust function.
+-- This version is more explicit, providing default values directly, which prevents
+-- potential mismatches with the table's schema.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, points, level, badges, scans_today)
+  VALUES (NEW.id, NEW.email, 0, 1, '{}', 0);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Step 3: Recreate the trigger, now linked to the new, correct function.
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
+  --
+  -- Step 1: Forcefully drop the old function AND the trigger that depends on it.
+-- Using CASCADE ensures that both the function and its dependent trigger are removed.
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
+-- Step 2: Create the new, robust function.
+-- This version is more explicit, providing default values directly in the INSERT statement,
+-- which is a more stable pattern that prevents potential data type mismatches.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, points, level, badges, scans_today)
+  VALUES (NEW.id, NEW.email, 0, 1, '{}', 0);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Step 3: Recreate the trigger, now correctly linked to the new, robust function.
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 
