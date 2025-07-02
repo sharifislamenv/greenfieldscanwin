@@ -1,0 +1,121 @@
+/* src/pages/CampaignsPage.css */
+
+.campaigns-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: #2d3748;
+}
+
+/* Hero Section */
+.hero-section {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f0fff4, #ebf8ff);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.hero-section h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a365d;
+  margin-bottom: 1rem;
+}
+
+.hero-section p {
+  font-size: 1.1rem;
+  color: #4a5568;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Section Headers */
+section h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #2b6cb0;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* Featured Campaigns */
+.featured-campaigns {
+  margin-bottom: 3rem;
+}
+
+/* Campaigns Grid */
+.campaigns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+/* Responsive Grid Adjustments */
+@media (min-width: 768px) {
+  .featured-campaigns .campaigns-grid {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  }
+}
+
+/* Empty State */
+.all-campaigns p {
+  text-align: center;
+  padding: 2rem;
+  color: #718096;
+  font-size: 1.1rem;
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+/* Campaign Card Enhancements (will work with your CampaignCard component) */
+.campaigns-grid :hover {
+  transform: translateY(-5px);
+  transition: transform 0.2s ease;
+}
+
+/* Section Spacing */
+section {
+  margin-bottom: 3rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 1.5rem;
+  }
+  
+  .hero-section h1 {
+    font-size: 2rem;
+  }
+  
+  .campaigns-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animation for featured campaigns */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.featured-campaigns .campaign-card {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.featured-campaigns .campaign-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.featured-campaigns .campaign-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.featured-campaigns .campaign-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
