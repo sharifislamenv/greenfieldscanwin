@@ -14,13 +14,12 @@ const ResetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // This listener detects when Supabase has verified a user from a recovery link
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setShowUpdateForm(true);
       }
     });
-    setLoading(false); // Assume no token initially, show the email form
+    setLoading(false);
 
     return () => subscription?.unsubscribe();
   }, []);
@@ -65,7 +64,6 @@ const ResetPasswordPage = () => {
     return <div className="auth-page"><h2>Loading...</h2></div>;
   }
   
-  // If user has arrived from a valid email link, show the update form
   if (showUpdateForm) {
     return (
       <div className="auth-page">
@@ -84,7 +82,6 @@ const ResetPasswordPage = () => {
     );
   }
 
-  // Otherwise, show the form to request a reset email
   return (
     <div className="auth-page">
       <h2>Reset Password</h2>

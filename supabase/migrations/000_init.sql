@@ -614,4 +614,64 @@ BEGIN
   END IF;
 END $$;
 
+--
+-- A more robust function to create a user profile upon signup.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email)
+  VALUES (NEW.id, NEW.email);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Recreate the trigger for new user creation to ensure it uses the new function.
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_new_user();
+
+-- Drop old triggers to prevent conflicts
+DROP TRIGGER IF EXISTS refresh_scan_leaderboard ON public.scans;
+DROP TRIGGER IF EXISTS refresh_share_leaderboard ON public.social_shares;
+DROP TRIGGER IF EXISTS refresh_referral_leaderboard ON public.referrals;
+
+-- Create a new, correct trigger that watches for changes to the 'points' column on the users table.
+DROP TRIGGER IF EXISTS on_user_points_change ON public.users;
+CREATE OR REPLACE TRIGGER on_user_points_change
+AFTER UPDATE OF points ON public.users
+FOR EACH ROW
+EXECUTE FUNCTION public.refresh_leaderboard();
+
+--
+-- Drop old, potentially conflicting triggers first for a clean slate
+DROP TRIGGER IF EXISTS on_user_points_change ON public.users;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- A more robust function to create a user profile upon signup.
+-- This version is explicit about all default columns.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, points, level, badges, scans_today)
+  VALUES (NEW.id, NEW.email, 0, 1, '{}', 0);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Recreate the trigger for new user creation to ensure it uses the function above.
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_new_user();
+
+-- Corrected trigger to refresh the leaderboard.
+-- The WHEN clause ensures it only runs when points actually change.
+CREATE OR REPLACE TRIGGER on_user_points_change
+AFTER UPDATE OF points ON public.users
+FOR EACH ROW
+WHEN (OLD.points IS DISTINCT FROM NEW.points)
+EXECUTE FUNCTION public.refresh_leaderboard();
+
 

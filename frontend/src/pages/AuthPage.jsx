@@ -38,10 +38,6 @@ const AuthPage = () => {
       setLoading(false);
     }
   };
-  
-  const navigateToReset = () => {
-    navigate('/reset');
-  }
 
   return (
     <div className="auth-page">
@@ -70,7 +66,7 @@ const AuthPage = () => {
         {mode === 'login' ? (
           <>
             <p>Don't have an account? <button onClick={() => { setMode('signup'); setMessage({type:'', text:''}); }}>Sign Up</button></p>
-            <p>Forgot password? <button onClick={navigateToReset}>Reset Password</button></p>
+            <p>Forgot password? <button onClick={() => navigate('/reset')}>Reset Password</button></p>
           </>
         ) : (
           <p>Already have an account? <button onClick={() => { setMode('login'); setMessage({type:'', text:''}); }}>Login</button></p>
