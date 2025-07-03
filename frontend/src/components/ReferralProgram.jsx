@@ -1,6 +1,4 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\components\ReferralProgram.jsx
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
