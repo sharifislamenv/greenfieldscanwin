@@ -20,7 +20,7 @@ import CampaignManager from './components/CampaignManager';
 
 function App() {
   return (
-    <ErrorBoundary fallback={<div>Something went wrong</div>}>
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
       <UserProvider>
       <CampaignProvider>
         <Router basename={process.env.PUBLIC_URL}>
@@ -41,6 +41,15 @@ function App() {
       </CampaignProvider>
     </UserProvider>
     </ErrorBoundary>    
+  );
+}
+
+function ErrorFallback({ error }) {
+  return (
+    <div role="alert">
+      <p>Something went wrong:</p>
+      <pre>{error.message}</pre>
+    </div>
   );
 }
 
