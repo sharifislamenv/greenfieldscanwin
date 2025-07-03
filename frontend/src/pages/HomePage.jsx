@@ -1,30 +1,15 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { useCampaigns } from '../contexts/CampaignContext';
-import { useUser } from '../contexts/UserContext';
+import { supabase } from '../supabaseClient';
 import { FacebookShareButton, TwitterShareButton, WhatsappShareButton } from 'react-share';
 import Chart from 'react-apexcharts';
-import CampaignCard from '../components/CampaignCard';
 import './HomePage.css';
 
 const HomePage = () => {
-  const navigate = useNavigate();
-  const { user: contextUser, userStats: contextUserStats, handleLogout } = useUser();
-  const { featuredCampaigns, activeCampaigns, isLoading: campaignsLoading } = useCampaigns();
-  
-  // State declarations
-  const [user, setUser] = useState(contextUser || null);
-  const [userStats, setUserStats] = useState(contextUserStats || {
-    points: 0,
-    level: 1,
-    badges: [],
-    scansToday: 0
-  });
-  
   // Authentication states
+  const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,10 +19,17 @@ const HomePage = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   
   // App states
+  const [userStats, setUserStats] = useState({ 
+    points: 0, 
+    level: 1, 
+    badges: [],
+    scansToday: 0
+  });
+  
+  const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
-  const [scanStatus, setScanStatus] = useState('idle');
   
   const [analytics, setAnalytics] = useState({ 
     scans: 0, 
@@ -65,76 +57,9 @@ const HomePage = () => {
       ]
     }
   });
-
-  // Fetch user data
-  const fetchUserData = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) throw error;
-      
-      setUserStats({
-        points: data.points || 0,
-        level: data.level || 1,
-        badges: data.badges || [],
-        scansToday: data.scans_today || 0
-      });
-    } catch (err) {
-      console.error('Error fetching user data:', err);
-      setDataError('Failed to load user data');
-    }
-  };
-
-  // Handle authentication
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setIsAuthLoading(true);
-    setAuthError('');
-    setAuthSuccess('');
-
-    try {
-      if (authMode === 'signup' && password !== confirmPassword) {
-        throw new Error("Passwords don't match");
-      }
-
-      if (authMode === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (error) throw error;
-        if (data?.user) {
-          setUser(data.user);
-          await fetchUserData(data.user.id);
-          setAuthSuccess('Login successful!');
-          setEmail('');
-          setPassword('');
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password
-        });
-        
-        if (error) throw error;
-        if (data?.user) {
-          setAuthSuccess('Account created! Please check your email for verification.');
-          setEmail('');
-          setPassword('');
-          setConfirmPassword('');
-        }
-      }
-    } catch (error) {
-      setAuthError(error.message);
-    } finally {
-      setIsAuthLoading(false);
-    }
-  };
+  
+  const [scanStatus, setScanStatus] = useState('idle');
+  const navigate = useNavigate();
 
   // Check for existing session on mount
   useEffect(() => {
@@ -158,14 +83,51 @@ const HomePage = () => {
     checkSession();
   }, []);
 
+  // Fetch user data when authenticated
+  const fetchUserData = async (userId) => {
+    try {
+      const { data: stats, error } = await supabase
+        .from('users')
+        .select('points, level, badges, scans_today')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+
+      if (stats) {
+        setUserStats({
+          points: stats.points || 0,
+          level: stats.level || 1,
+          badges: stats.badges || [],
+          scansToday: stats.scans_today || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setDataError('Failed to load user data');
+    }
+  };
+
   // Fetch public data regardless of auth state
   useEffect(() => {
     const fetchPublicData = async () => {
       try {
         setIsLoading(true);
         setDataError(null);
+        const today = new Date().toISOString();
         
-        // Leaderboard
+        // Active campaigns (current date between start and end dates)
+        const { data: campaigns, error: campaignsError } = await supabase
+          .from('campaigns')
+          .select('*')
+          .lte('start_date', today)
+          .gte('end_date', today)
+          .order('end_date', { ascending: true });
+        
+        if (campaignsError) throw campaignsError;
+        setActiveCampaigns(campaigns || []);
+        
+        // Leaderboard - use the materialized view directly
         const { data: leaderboardData, error: leaderboardError } = await supabase
           .from('leaderboard')
           .select('*')
@@ -175,7 +137,7 @@ const HomePage = () => {
         if (leaderboardError) throw leaderboardError;
         setLeaderboard(leaderboardData || []);
         
-        // Analytics counts
+        // Analytics - use count with error handling
         const { count: scans, error: scansError } = await supabase
           .from('scans')
           .select('*', { count: 'exact', head: true });
@@ -194,7 +156,7 @@ const HomePage = () => {
         
         if (redemptionsError) throw redemptionsError;
         
-        // Chart data
+        // Get chart data with error handling
         const { data: scanData, error: scanDataError } = await supabase.rpc('get_weekly_scan_data');
         if (scanDataError) throw scanDataError;
         
@@ -217,6 +179,8 @@ const HomePage = () => {
       } catch (error) {
         console.error('Error fetching public data:', error);
         setDataError('Failed to load public data');
+        // Set default/empty values if there's an error
+        setActiveCampaigns([]);
         setLeaderboard([]);
         setAnalytics(prev => ({
           ...prev,
@@ -239,6 +203,79 @@ const HomePage = () => {
     fetchPublicData();
   }, []);
 
+  // Handle authentication
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    setAuthError('');
+    setAuthSuccess('');
+
+    try {
+      // Form validation
+      if (authMode === 'signup' && password !== confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
+
+      if (authMode === 'login') {
+        // Login user
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        
+        setAuthSuccess('Login successful!');
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        await fetchUserData(user.id);
+      } else {
+        // Sign up user
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              points: 0,
+              level: 1
+            }
+          }
+        });
+        if (error) throw error;
+        
+        setAuthSuccess(`Success! Check ${email} for confirmation.`);
+        setAuthMode('login');
+      }
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  /* Handle logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserStats({ points: 0, level: 1, badges: [], scansToday: 0 });
+    setAuthSuccess('You have been logged out');
+  };*/
+  // Handle logout
+  const handleLogout = async () => {
+  try {
+    // Clear all Supabase-related cache
+    window.localStorage.removeItem('sb-data');
+    window.localStorage.removeItem(`sb-${supabase.supabaseUrl}-auth-token`);
+    
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    
+    // Force refresh to ensure clean state
+    window.location.href = '/auth';
+  } catch (error) {
+    console.error('Logout error:', error);
+    setAuthError('Failed to logout. Please try again.');
+  }
+  };
+
+  // Handle scanning
   const handleStartScanning = () => {
     navigate('/start-scan');
   };
@@ -249,8 +286,10 @@ const HomePage = () => {
     setScanStatus('scanning');
     
     try {
+      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
+      // Update user stats
       const { data, error } = await supabase
         .from('users')
         .update({ 
@@ -281,6 +320,7 @@ const HomePage = () => {
 
   const handleSocialShare = async (platform) => {
     try {
+      // Record share in database
       if (user) {
         const { error } = await supabase
           .from('social_shares')
@@ -305,7 +345,32 @@ const HomePage = () => {
     );
   };
 
-  if (isLoading || campaignsLoading) {
+  const renderCampaignCard = (campaign) => (
+    <div key={campaign.id} className="campaign-card">
+      <div className={`campaign-badge ${campaign.type.toLowerCase()}`}>
+        {campaign.type}
+      </div>
+      <h3>{campaign.name}</h3>
+      <p>{campaign.description}</p>
+      <div className="campaign-dates">
+        {new Date(campaign.start_date).toLocaleDateString()} -{' '}
+        {new Date(campaign.end_date).toLocaleDateString()}
+      </div>
+      <div className="campaign-reward">
+        Reward: {campaign.reward.value} {campaign.reward.type}
+      </div>
+      {user && (
+        <button 
+          className="campaign-button"
+          onClick={() => navigate(`/campaign/${campaign.id}`)}
+        >
+          View Details
+        </button>
+      )}
+    </div>
+  );
+
+  if (isLoading) {
     return (
       <div className="loading-screen">
         <div className="spinner"></div>
@@ -562,32 +627,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Featured Campaigns Section */}
-      {featuredCampaigns.length > 0 && (
-        <div className="campaigns-section">
-          <div className="section-header">
-            <h2>Featured Campaigns</h2>
-            <button 
-              className="view-all"
-              onClick={() => navigate('/campaigns')}
-            >
-              View All Campaigns
-            </button>
-          </div>
-          <div className="campaigns-grid">
-            {featuredCampaigns.map(campaign => (
-              <CampaignCard 
-                key={campaign.id} 
-                campaign={campaign} 
-                isClickable={true}
-                size="medium"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Active Campaigns Section */}
+      {/* Campaigns Section */}
       <div className="campaigns-section">
         <div className="section-header">
           <h2>Active Campaigns</h2>
@@ -605,14 +645,7 @@ const HomePage = () => {
         )}
         <div className="campaigns-grid">
           {activeCampaigns.length > 0 ? (
-            activeCampaigns.slice(0, 3).map(campaign => (
-              <CampaignCard 
-                key={campaign.id} 
-                campaign={campaign} 
-                isClickable={true}
-                size="medium"
-              />
-            ))
+            activeCampaigns.slice(0, 3).map(renderCampaignCard)
           ) : (
             <p>No active campaigns at the moment. Check back soon!</p>
           )}
