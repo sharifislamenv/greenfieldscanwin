@@ -23,7 +23,7 @@ function App() {
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <UserProvider>
       <CampaignProvider>
-        <Router basename={process.env.PUBLIC_URL}>
+        <Router basename="/">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/auth" element={<AuthPage />} />
