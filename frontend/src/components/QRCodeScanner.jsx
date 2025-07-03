@@ -16,19 +16,20 @@ const QRCodeScanner = () => {
   // This useEffect hook is the core of the solution.
   // It runs ONLY when 'isScannerActive' changes.
   useEffect(() => {
-    // If the scanner should not be active, do nothing.
+    // If the scanner should not be active, we do nothing.
     if (!isScannerActive) {
-      // If the scanner instance exists and is scanning, stop it.
-      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.stop().catch(e => console.error("Failed to stop scanner on deactivation.", e));
-      }
       return;
     }
 
     // This is an async function to start the camera scanning.
     const startScanner = async () => {
       try {
-        // Create a new instance of the scanner library, attaching to our div.
+        // Ensure we have a clean instance before starting.
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        
+        // Create a new instance of the scanner library.
         html5QrCodeRef.current = new Html5Qrcode("qr-scanner-container");
         
         const onScanSuccess = (decodedText) => {
@@ -41,7 +42,7 @@ const QRCodeScanner = () => {
 
         // Start the camera and scanning process.
         await html5QrCodeRef.current.start(
-          { facingMode: "environment" }, // Request the rear camera on mobile
+          { facingMode: "environment" }, // Request the rear camera
           { fps: 10, qrbox: { width: 250, height: 250 } },
           onScanSuccess,
           onScanFailure
@@ -57,13 +58,13 @@ const QRCodeScanner = () => {
     startScanner();
 
     // This is a cleanup function. It runs when the component is removed
-    // from the page, ensuring the camera is turned off.
+    // from the page or when the effect re-runs.
     return () => {
       if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
         html5QrCodeRef.current.stop().catch(e => console.error("Failed to stop scanner on cleanup.", e));
       }
     };
-  }, [isScannerActive]);
+  }, [isScannerActive]); // The hook depends only on this state
 
   const handleScanResult = (scannedText) => {
     if (scannedText) {
@@ -92,8 +93,8 @@ const QRCodeScanner = () => {
         </div>
       )}
 
-      {/* This container is now always in the DOM but hidden until active.
-          This prevents the "HTML Element not found" error. */}
+      {/* This container is now always in the DOM, but hidden until the scanner is active. */}
+      {/* This prevents the "HTML Element not found" error. */}
       <div className="scanner-view-wrapper" style={{ display: isScannerActive ? 'block' : 'none' }}>
         <div id="qr-scanner-container"></div>
         <div className="scanner-viewfinder"></div>
