@@ -19,9 +19,10 @@ import CampaignManager from './components/CampaignManager';
 
 function App() {
   return (
-    <UserProvider>
+    <ErrorBoundary>
+      <UserProvider>
       <CampaignProvider>
-        <Router>
+        <Router basename={process.env.PUBLIC_URL}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/auth" element={<AuthPage />} />
@@ -38,6 +39,7 @@ function App() {
         </Router>
       </CampaignProvider>
     </UserProvider>
+    </ErrorBoundary>    
   );
 }
 
