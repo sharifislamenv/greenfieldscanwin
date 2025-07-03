@@ -1,7 +1,7 @@
 // src/components/CampaignForm.jsx
 
 import React, { useState, useEffect } from 'react';
-import { CampaignService } from '../services/campaignService';
+import { CampaignService } from '../services/CampaignService';
 import { useCampaigns } from '../contexts/CampaignContext';
 import './CampaignForm.css';
 
