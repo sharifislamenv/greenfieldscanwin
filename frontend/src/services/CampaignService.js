@@ -1,4 +1,4 @@
-// src/services/campaignService.js
+// src/services/CampaignService.js
 
 import { supabase } from '../supabaseClient';
 
