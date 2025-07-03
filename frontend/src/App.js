@@ -2,6 +2,7 @@
 
 // src/App.js
 import React from 'react';
+import { ErrorBoundary } from 'react-error-boundary'; // Install with: npm install react-error-boundary
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { CampaignProvider } from './contexts/CampaignContext';
 import { UserProvider } from './contexts/UserContext';
@@ -19,7 +20,7 @@ import CampaignManager from './components/CampaignManager';
 
 function App() {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary fallback={<div>Something went wrong</div>}>
       <UserProvider>
       <CampaignProvider>
         <Router basename={process.env.PUBLIC_URL}>
