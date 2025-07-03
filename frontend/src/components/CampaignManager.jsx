@@ -1,6 +1,5 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\components\CampaignManager.jsx
 
-// src/components/CampaignManager.jsx
 import React, { useState, useEffect } from 'react';
 import { useCampaigns } from '../contexts/CampaignContext';
 import CampaignForm from './CampaignForm';

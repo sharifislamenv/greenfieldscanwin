@@ -1,9 +1,7 @@
 //D:\MyProjects\greenfield-scanwin\frontend\src\pages\HomePage.jsx
 
-import { useState } from 'react';
-//import supabase from '../config/supabaseClient'; // or your supabase initialization path
-import supabase from '../supabaseClient';
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import { useCampaigns } from '../contexts/CampaignContext';
 import { useUser } from '../contexts/UserContext';
@@ -14,8 +12,17 @@ import './HomePage.css';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { user, userStats, handleLogout } = useUser();
+  const { user: contextUser, userStats: contextUserStats, handleLogout } = useUser();
   const { featuredCampaigns, activeCampaigns, isLoading: campaignsLoading } = useCampaigns();
+  
+  // State declarations
+  const [user, setUser] = useState(contextUser || null);
+  const [userStats, setUserStats] = useState(contextUserStats || {
+    points: 0,
+    level: 1,
+    badges: [],
+    scansToday: 0
+  });
   
   // Authentication states
   const [authMode, setAuthMode] = useState('login');
@@ -59,6 +66,76 @@ const HomePage = () => {
     }
   });
 
+  // Fetch user data
+  const fetchUserData = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      
+      setUserStats({
+        points: data.points || 0,
+        level: data.level || 1,
+        badges: data.badges || [],
+        scansToday: data.scans_today || 0
+      });
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setDataError('Failed to load user data');
+    }
+  };
+
+  // Handle authentication
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    setAuthError('');
+    setAuthSuccess('');
+
+    try {
+      if (authMode === 'signup' && password !== confirmPassword) {
+        throw new Error("Passwords don't match");
+      }
+
+      if (authMode === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) throw error;
+        if (data?.user) {
+          setUser(data.user);
+          await fetchUserData(data.user.id);
+          setAuthSuccess('Login successful!');
+          setEmail('');
+          setPassword('');
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password
+        });
+        
+        if (error) throw error;
+        if (data?.user) {
+          setAuthSuccess('Account created! Please check your email for verification.');
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
+        }
+      }
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
   // Check for existing session on mount
   useEffect(() => {
     const checkSession = async () => {
@@ -88,7 +165,7 @@ const HomePage = () => {
         setIsLoading(true);
         setDataError(null);
         
-        // Leaderboard - use the materialized view directly
+        // Leaderboard
         const { data: leaderboardData, error: leaderboardError } = await supabase
           .from('leaderboard')
           .select('*')
@@ -98,7 +175,7 @@ const HomePage = () => {
         if (leaderboardError) throw leaderboardError;
         setLeaderboard(leaderboardData || []);
         
-        // Analytics - use count with error handling
+        // Analytics counts
         const { count: scans, error: scansError } = await supabase
           .from('scans')
           .select('*', { count: 'exact', head: true });
@@ -117,7 +194,7 @@ const HomePage = () => {
         
         if (redemptionsError) throw redemptionsError;
         
-        // Get chart data with error handling
+        // Chart data
         const { data: scanData, error: scanDataError } = await supabase.rpc('get_weekly_scan_data');
         if (scanDataError) throw scanDataError;
         
@@ -140,7 +217,6 @@ const HomePage = () => {
       } catch (error) {
         console.error('Error fetching public data:', error);
         setDataError('Failed to load public data');
-        // Set default/empty values if there's an error
         setLeaderboard([]);
         setAnalytics(prev => ({
           ...prev,
@@ -173,10 +249,8 @@ const HomePage = () => {
     setScanStatus('scanning');
     
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Update user stats
       const { data, error } = await supabase
         .from('users')
         .update({ 
@@ -207,7 +281,6 @@ const HomePage = () => {
 
   const handleSocialShare = async (platform) => {
     try {
-      // Record share in database
       if (user) {
         const { error } = await supabase
           .from('social_shares')
